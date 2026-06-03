@@ -1,10 +1,9 @@
-import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, CircleMember, Transaction, Circle
+from app.models import User, Membership, Transaction, Circle
 from app.services import apply_reinsurance
 
 router = APIRouter(prefix="/facilitator", tags=["facilitator"])
@@ -18,14 +17,14 @@ def require_facilitator(current_user: User = Depends(get_current_user)):
 
 class ProxyContributionRequest(BaseModel):
     member_phone: str
-    circle_id: str
+    circle_id: int
     amount: float
 
 
 class AddOfflineMemberRequest(BaseModel):
     phone: str
     name: str
-    circle_id: str
+    circle_id: int
 
 
 @router.post("/add-member", status_code=201)
@@ -34,14 +33,15 @@ def add_offline_member(
     facilitator: User = Depends(require_facilitator),
     db: Session = Depends(get_db),
 ):
-    """Facilitator onboards an offline/feature-phone member into a circle."""
     user = db.query(User).filter(User.phone == body.phone).first()
     if not user:
         user = User(
-            id=str(uuid.uuid4()),
             phone=body.phone,
             name=body.name,
-            hashed_password="OFFLINE_USER",   # no login; managed by facilitator
+            full_name=body.name,
+            email=f"{body.phone}@offline.local",
+            phone_number=body.phone,
+            hashed_password="OFFLINE_USER",
         )
         db.add(user)
         db.flush()
@@ -50,13 +50,13 @@ def add_offline_member(
     if not circle:
         raise HTTPException(status_code=404, detail="Circle not found")
 
-    existing = db.query(CircleMember).filter(
-        CircleMember.circle_id == body.circle_id, CircleMember.user_id == user.id
+    existing = db.query(Membership).filter(
+        Membership.circle_id == body.circle_id, Membership.user_id == user.id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="User already in circle")
 
-    member = CircleMember(id=str(uuid.uuid4()), circle_id=body.circle_id, user_id=user.id)
+    member = Membership(circle_id=body.circle_id, user_id=user.id)
     db.add(member)
     db.commit()
     return {"status": "member_added", "user_id": user.id}
@@ -68,7 +68,6 @@ def proxy_contribution(
     facilitator: User = Depends(require_facilitator),
     db: Session = Depends(get_db),
 ):
-    """Facilitator records cash contribution on behalf of offline member."""
     member = db.query(User).filter(User.phone == body.member_phone).first()
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
@@ -78,7 +77,6 @@ def proxy_contribution(
 
     net = apply_reinsurance(circle, body.amount, db)
     tx = Transaction(
-        id=str(uuid.uuid4()),
         circle_id=body.circle_id,
         user_id=member.id,
         amount=body.amount,

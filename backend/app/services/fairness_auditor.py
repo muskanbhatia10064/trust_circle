@@ -1,7 +1,6 @@
-import uuid
+import pandas as pd
 from datetime import datetime
 from itertools import combinations
-import pandas as pd
 from sqlalchemy.orm import Session
 from app.models import TrustScore, User, FairnessAudit
 from app.config import settings
@@ -33,7 +32,6 @@ def run_fairness_audit(db: Session) -> list[FairnessAudit]:
             disparity = abs(mean_a - mean_b) / mean_a
             triggered = disparity > settings.FAIRNESS_DISPARITY_THRESHOLD
             audit = FairnessAudit(
-                id=str(uuid.uuid4()),
                 audit_date=datetime.utcnow(),
                 dimension=dimension,
                 group_a=str(g_a),
