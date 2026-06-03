@@ -39,10 +39,10 @@ def seed():
     try:
         # Skip if already seeded
         if db.query(User).filter(User.phone == "9876543210").first():
-            print("⚠️  Demo data already exists. Skipping seed.")
+            print("Demo data already exists. Skipping seed.")
             return
 
-        print("🌱 Seeding demo data...")
+        print("Seeding demo data...")
 
         # 1. Create users
         user_objs = []
@@ -122,10 +122,10 @@ def seed():
             db.add(score)
 
         db.commit()
-        print("✅ Seed complete!")
+        print("Seed complete!")
         print("\nDemo credentials (phone / password):")
         for u in USERS:
-            print(f"  {u['name']:<20} {u['phone']}  /  Password@123  →  score {u['target_score']}")
+            print(f"  {u['name']} | {u['phone']} | Password@123 | score {u['target_score']}")
 
     finally:
         db.close()
