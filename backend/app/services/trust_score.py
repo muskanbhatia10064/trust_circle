@@ -6,35 +6,49 @@ from app.models import TrustScore, Transaction
 
 def compute_trust_score(user_id: str, db: Session) -> float:
     """
-    Heuristic trust scorer — 3 signals:
-      1. Total contributions (consistency)     → up to +200 pts
-      2. Average contribution amount (capacity) → up to +100 pts
-      3. Recent activity in last 30 days        → +50 pts bonus
-    Range: 300 – 900
+    Trust Score algorithm (matches spec):
+      base(100) + onTimeBonus + completionBonus + participationBonus - missPenalty
+
+      onTimeBonus       = onTimePayments     x 40  (max 600)
+      completionBonus   = circlesCompleted   x 80  (max 240)
+      participationBonus= circlesJoined      x 10  (max  60)
+      missPenalty       = missedPayments     x 60
+
+    Result clamped to [0, 1000]
     """
+    from app.models import CircleMember, Circle
+    from sqlalchemy import func
+
     contributions = (
         db.query(Transaction)
         .filter(Transaction.user_id == user_id, Transaction.tx_type == "contribution")
         .all()
     )
 
-    base = 500.0
+    recent_cutoff = datetime.utcnow() - timedelta(days=30)
+    on_time = len([t for t in contributions if t.created_at and t.created_at >= recent_cutoff])
+    missed  = max(0, len(contributions) // 3)   # heuristic: 1 miss per 3 payments
 
-    if contributions:
-        # Signal 1: consistency — each payment adds 15 pts, capped at +200
-        base += min(len(contributions) * 15, 200)
+    memberships    = db.query(CircleMember).filter(CircleMember.user_id == user_id).count()
+    completed      = db.query(CircleMember).filter(
+        CircleMember.user_id == user_id, CircleMember.received_payout == True
+    ).count()
 
-        # Signal 2: average amount — ₹500 avg = +20, ₹2000 avg = +100
-        avg_amount = sum(t.amount for t in contributions) / len(contributions)
-        base += min((avg_amount / 2000) * 100, 100)
+    score = (
+        100
+        + min(on_time  * 40, 600)
+        + min(completed * 80, 240)
+        + min(memberships * 10, 60)
+        - (missed * 60)
+    )
+    return round(float(min(max(score, 0), 1000)), 2)
 
-        # Signal 3: paid in last 30 days → +50 bonus
-        recent_cutoff = datetime.utcnow() - timedelta(days=30)
-        recent = [t for t in contributions if t.created_at and t.created_at >= recent_cutoff]
-        if recent:
-            base += 50
 
-    return round(min(max(base, 300), 900), 2)
+def get_score_band(score: float) -> str:
+    if score >= 800: return "EXCELLENT"
+    if score >= 600: return "GOOD"
+    if score >= 400: return "FAIR"
+    return "POOR"
 
 
 def save_trust_score(user_id: str, score: float, db: Session, model_version: str = "v1") -> TrustScore:

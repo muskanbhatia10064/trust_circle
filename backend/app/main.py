@@ -5,6 +5,7 @@ from app.routers import (
     auth_router, trust_score_router, circles_router,
     consent_router, partners_router, channels_router, facilitator_router,
 )
+from app.routers.users import router as users_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -19,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(users_router)
 app.include_router(trust_score_router)
 app.include_router(circles_router)
 app.include_router(consent_router)

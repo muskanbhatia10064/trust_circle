@@ -106,6 +106,26 @@ def contribute(
     }
 
 
+@router.get("/my")
+def my_circles(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Alias: circles the current user belongs to."""
+    return list_circles(current_user, db)
+
+
+@router.post("/{circle_id}/leave")
+def leave_circle(circle_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    member = db.query(CircleMember).filter(
+        CircleMember.circle_id == circle_id, CircleMember.user_id == current_user.id
+    ).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="You are not in this circle")
+    if member.received_payout:
+        raise HTTPException(status_code=400, detail="Cannot leave after receiving payout")
+    db.delete(member)
+    db.commit()
+    return {"status": "left", "circle_id": circle_id}
+
+
 @router.get("/{circle_id}")
 def get_circle(circle_id: str, db: Session = Depends(get_db)):
     circle = db.query(Circle).filter(Circle.id == circle_id).first()
