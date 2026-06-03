@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, ConsentRecord, TrustScore, Circle, CircleMember
+from app.models import User, ConsentRecord, TrustScore, Circle, Membership
 
 router = APIRouter(prefix="/consent", tags=["consent"])
 
@@ -31,7 +31,6 @@ def update_consent(body: ConsentRequest, current_user: User = Depends(get_curren
         record.revoked_at = now if not body.granted else None
     else:
         record = ConsentRecord(
-            id=str(uuid.uuid4()),
             user_id=current_user.id,
             purpose=body.purpose,
             granted=body.granted,
@@ -52,7 +51,7 @@ def list_consents(current_user: User = Depends(get_current_user), db: Session = 
 def export_financial_passport(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Financial Passport — full data portability export per DPDP Act 2023."""
     scores = db.query(TrustScore).filter(TrustScore.user_id == current_user.id).all()
-    memberships = db.query(CircleMember).filter(CircleMember.user_id == current_user.id).all()
+    memberships = db.query(Membership).filter(Membership.user_id == current_user.id).all()
     passport = {
         "user": {"id": current_user.id, "phone": current_user.phone, "name": current_user.name},
         "trust_scores": [{"score": s.score, "computed_at": str(s.computed_at)} for s in scores],

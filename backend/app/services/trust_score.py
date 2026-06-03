@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from app.models import TrustScore, Transaction
@@ -52,10 +51,14 @@ def get_score_band(score: float) -> str:
 
 
 def save_trust_score(user_id: str, score: float, db: Session, model_version: str = "v1") -> TrustScore:
+    prev = get_latest_trust_score(user_id, db)
+    prev_score = prev.score if prev else score
     record = TrustScore(
-        id=str(uuid.uuid4()),
         user_id=user_id,
         score=score,
+        previous_score=min(max(round(prev_score / 10, 2), 0), 100),
+        new_score=min(max(round(score / 10, 2), 0), 100),
+        reason="auto-computed",
         model_version=model_version,
         features={"raw_score": score},
     )

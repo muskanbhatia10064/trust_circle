@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, TrustScore, Circle, CircleMember
+from app.models import User, TrustScore, Circle, Membership
 from app.services import compute_trust_score, save_trust_score, get_latest_trust_score, get_previous_trust_score, run_fairness_audit
 from app.services.trust_score import get_score_band
 
