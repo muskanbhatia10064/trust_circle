@@ -8,15 +8,27 @@
 
 ---
 
+## 🎯 DEMO GOAL — 3 WOW MOMENTS FOR JUDGES
+
+We are building a **3-minute demo**, not a full product. Every task below serves one of these three moments:
+
+| # | Wow Moment | What Judges See |
+|---|------------|-----------------|
+| 1 | **Trust Score ring animates up** | User pays ₹1,500 → score ring fills upward in real-time. Proves the core idea. |
+| 2 | **WhatsApp bot replies instantly** | Someone types "what's my balance?" → bot replies with Priya Sharma's circle balance. Proves rural accessibility. |
+| 3 | **Live social impact counter** | Admin dashboard: "47 credit identities created, ₹3,40,000 secured across 12 circles" from seeded real data. Makes the mission tangible. |
+
+---
+
 ## 🔐 WHO OWNS WHAT
 
-| Person | Role | Files You Work In | Files You NEVER Touch |
-|--------|------|-------------------|----------------------|
-| **Person 1** | Backend Lead | `backend/app/models/`, `backend/app/database.py`, `backend/app/config.py`, `backend/app/main.py`, `backend/app/auth.py`, `backend/requirements.txt` | `frontend/` anything |
-| **Person 2** | Backend Dev | `backend/app/routers/auth.py`, `backend/app/routers/trust_score.py`, `backend/app/routers/circles.py`, `backend/app/services/trust_score.py`, `backend/app/services/fairness_auditor.py`, `backend/app/services/reinsurance.py`, `backend/tests/test_api.py` | `frontend/` anything |
-| **Person 3** | Backend Dev | `backend/app/routers/consent.py`, `backend/app/routers/partners.py`, `backend/app/routers/channels.py`, `backend/app/routers/facilitator.py`, `backend/app/services/ussd_gateway.py`, `backend/app/services/ivr.py` | `frontend/` anything |
-| **Person 4** | Frontend Lead | `frontend/src/services/api.js`, `frontend/src/main.jsx`, `frontend/src/hooks/useAuth.jsx`, `frontend/src/index.css`, `frontend/src/components/`, `frontend/index.html`, `frontend/package.json`, `frontend/vite.config.js`, `frontend/.env.example` | `backend/` anything |
-| **Person 5** | Frontend Dev | `frontend/src/pages/Dashboard.jsx`, `frontend/src/pages/TrustScore.jsx`, `frontend/src/pages/Circles.jsx`, `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`, `frontend/src/pages/Consent.jsx`, `frontend/src/pages/Facilitator.jsx` | `backend/` anything |
+| Person | Role | Owns | Never Touch |
+|--------|------|------|-------------|
+| **Person 1** | Backend Lead | DB models, auth, config, seed data, Express API skeleton | `frontend/` |
+| **Person 2** | Backend Dev | 3 core API endpoints: create circle, add payment, get trust score | `frontend/` |
+| **Person 3** | Backend Dev | WhatsApp bot (Twilio), PostgreSQL seed data with real Indian names | `frontend/` |
+| **Person 4** | Frontend Lead | Next.js setup, design system (Sora font + #1D9E75 green), API wiring, Leaflet map | `backend/` |
+| **Person 5** | Frontend Dev | Circle dashboard, Trust Score animated ring, Impact counter, member cards | `backend/` |
 
 ---
 
@@ -25,141 +37,168 @@
 ---
 
 ### 🔴 PERSON 1 — Backend Lead
-**Focus: Database, Auth, Config, Core Setup**
+**Focus: Database, Auth, Config, API skeleton**
 
-Your job is to make sure the database and authentication work perfectly. Everything else depends on you.
+Everything depends on you. Get this done first so Person 2 and 3 can build on top.
 
 **Your files:**
-- `backend/app/models/models.py` — All database tables (User, Circle, TrustScore, etc.)
-- `backend/app/database.py` — Database connection
-- `backend/app/config.py` — All environment variables
-- `backend/app/auth.py` — Login/JWT token logic
-- `backend/app/main.py` — Registers all the routers, CORS settings
-- `backend/requirements.txt` — Python packages list
-- `backend/.env.example` — Environment variable template
+- `backend/app/models/models.py` — 5 tables only: users, circles, members, transactions, scores
+- `backend/app/database.py` — PostgreSQL connection
+- `backend/app/config.py` — All env variables
+- `backend/app/auth.py` — JWT login logic
+- `backend/app/main.py` — Wires all routers, CORS
+- `backend/requirements.txt` — Keep updated
 
 **Your tasks:**
-- [ ] Set up PostgreSQL database locally and test the connection
-- [ ] Make sure all database tables are created correctly (`Base.metadata.create_all`)
-- [ ] Test that register + login endpoints return correct JWT tokens
-- [ ] If any new database table is needed, add it to `models.py` and tell Person 2
-- [ ] Keep `requirements.txt` updated whenever you install a new package
+- [ ] Set up PostgreSQL, confirm connection works
+- [ ] Create the 5 tables — users, circles, members, transactions, scores
+- [ ] Test register + login returns a JWT token
+- [ ] Write a `seed.py` script that inserts realistic Indian demo data (see below)
+- [ ] Tell Person 2 and 3 when DB is ready
+
+**Seed data to use (makes demo look real, not AI-generated):**
+```
+Users:   Priya Sharma (Lucknow), Rahul Verma (Varanasi), Sunita Devi (Gorakhpur),
+         Amit Yadav (Patna), Meera Patel (Kanpur)
+Circles: "Mahila Bachat Mandal", "Kisan Sahayata Group", "Varanasi Vyapar Circle"
+Payments: Rahul Verma paid ₹1,500 on 28 May. Priya Sharma paid ₹2,000 on 1 Jun.
+Scores:  Priya: 742, Rahul: 681, Sunita: 598, Amit: 720, Meera: 655
+```
 
 **DO NOT touch:** Anything inside `frontend/`
 
 ---
 
 ### 🔴 PERSON 2 — Backend Dev
-**Focus: Core APIs — Auth, Trust Score, Circles**
+**Focus: 3 core API endpoints that power the demo**
 
-Your job is to build the core business logic — user authentication, trust scoring with fairness auditing, and the circle (ROSCA) management system.
+You build exactly 3 endpoints. That's it. Make them fast and reliable.
 
 **Your files:**
-- `backend/app/routers/auth.py` — Register/Login endpoints
-- `backend/app/routers/trust_score.py` — Trust Score compute + fairness audit endpoint
-- `backend/app/routers/circles.py` — Create/join/contribute to circles
-- `backend/app/services/trust_score.py` — Score computation logic (ML integration point)
-- `backend/app/services/fairness_auditor.py` — Bias detection logic (gender/geography disparity)
-- `backend/app/services/reinsurance.py` — 0.5% buffer deduction from every contribution
-- `backend/tests/test_api.py` — All backend tests
+- `backend/app/routers/circles.py` — create circle, add payment
+- `backend/app/routers/trust_score.py` — get trust score (this powers the animated ring)
+- `backend/app/services/trust_score.py` — score recalculates after every payment
+- `backend/app/services/reinsurance.py` — 0.5% buffer deduction
+- `backend/tests/test_api.py` — test all 3 endpoints
+
+**Your 3 endpoints:**
+```
+POST /circles/          → create a circle
+POST /circles/{id}/contribute → add a payment (score updates after this)
+GET  /trust-score/me    → return current score (frontend polls this for the animation)
+```
 
 **Your tasks:**
-- [ ] Test auth endpoints (register/login) using http://localhost:8000/docs (Swagger UI)
-- [ ] Improve the trust score algorithm in `services/trust_score.py` — replace heuristic with real ML model
-- [ ] Make sure the fairness audit correctly flags >15% disparity and logs it
-- [ ] Test circle creation, joining, and contribution flow
-- [ ] Verify reinsurance buffer is deducted correctly (0.5% to emergency fund)
-- [ ] Add more test cases in `tests/test_api.py` for all your endpoints
-- [ ] Coordinate with Person 1 if you need a new database column or table
+- [ ] After a payment is recorded, recompute the trust score automatically
+- [ ] `GET /trust-score/me` must return score + previous score so frontend can animate the change
+- [ ] Test with Rahul Verma paying ₹1,500 — confirm score goes up
+- [ ] Make sure 0.5% reinsurance buffer is deducted and shown in response
+- [ ] Add `GET /admin/stats` → returns `{ users_count, total_pooled, circles_count }` for impact counter
 
 **DO NOT touch:** Anything inside `frontend/`
 
 ---
 
 ### 🔴 PERSON 3 — Backend Dev
-**Focus: Rural Access Channels & Partner Integrations**
+**Focus: WhatsApp bot — the accessibility wow moment**
 
-Your job is to build the rural-first access layer (USSD *99#, IVR voice), DPDP Act consent management, NGO facilitator mode, and partner webhook system for NBFC/MFI integrations.
+This is the most impactful demo moment for judges. A real WhatsApp message getting a real reply.
 
 **Your files:**
-- `backend/app/routers/consent.py` — DPDP consent + financial passport export
-- `backend/app/routers/partners.py` — NBFC/MFI partner webhook API + OAuth2 Trust Score access
-- `backend/app/routers/channels.py` — USSD *99# and IVR endpoints
-- `backend/app/routers/facilitator.py` — NGO facilitator mode (offline member management)
-- `backend/app/services/ussd_gateway.py` — USSD menu state machine (feature phone, no internet)
-- `backend/app/services/ivr.py` — IVR XML response builder (Exotel/Ozonetel integration)
+- `backend/app/routers/whatsapp.py` — Twilio webhook handler
+- `backend/app/services/whatsapp_bot.py` — 3 command handlers
+
+**3 commands the bot must handle:**
+```
+"balance"  → "Priya, your Mahila Bachat Mandal balance is ₹18,500. Next payout: 15 Jun."
+"score"    → "Your TrustCircle score is 742 ⭐. That's Top 15% in your district!"
+"status"   → "Circle status: 8/10 members paid this month. 2 pending: Sunita, Amit."
+```
 
 **Your tasks:**
-- [ ] Test USSD flow by simulating POST requests to `/ussd` with different menu inputs
-- [ ] Build IVR call flow responses for 12 languages (use placeholder audio URLs for now)
-- [ ] Implement consent toggle endpoints and financial passport JSON export
-- [ ] Test partner webhook API with HMAC signature verification
-- [ ] Implement facilitator endpoints to add offline members and record cash contributions
-- [ ] Test all endpoints using http://localhost:8000/docs (Swagger UI)
-- [ ] Coordinate with Person 1 if you need a new database column or table
+- [ ] Sign up for Twilio free sandbox at twilio.com (free, takes 10 min)
+- [ ] Set webhook URL to `POST /whatsapp/incoming`
+- [ ] Handle the 3 commands above with hardcoded demo responses (real data from DB preferred)
+- [ ] Test on your own WhatsApp — screenshot it for the pitch
+- [ ] If user sends anything else, reply: "Hi! I'm TrustCircle bot. Try: balance, score, or status"
 
 **DO NOT touch:** Anything inside `frontend/`
 
 ---
 
 ### 🟢 PERSON 4 — Frontend Lead
-**Focus: App Setup, Routing, API Calls, Global Styles**
+**Focus: Next.js setup, design system, API wiring, Leaflet map**
 
-Your job is the foundation of the frontend. You wire everything together — routing, API calls, authentication state, and global styling. Person 5 depends on your `api.js` to call the backend.
+You build the shell that Person 5 fills. Design system first — everything else depends on your colors and components.
+
+**Design system (commit to these, never deviate):**
+- Font: **Sora** (Google Fonts — add to `_document.js`)
+- Accent color: **#1D9E75** (green) — every button, badge, highlight
+- Background: **#F7F9FC**, Cards: **white** with `box-shadow: 0 2px 12px rgba(0,0,0,0.06)`
+- Border radius: **12px** everywhere
 
 **Your files:**
-- `frontend/src/services/api.js` — All API call functions (DO NOT call backend URLs directly in pages)
-- `frontend/src/hooks/useAuth.jsx` — Login/logout state shared across the whole app
-- `frontend/src/main.jsx` — App routing (which URL shows which page)
-- `frontend/src/index.css` — All global styles
-- `frontend/src/components/Navbar.jsx` — Top navigation bar
-- `frontend/index.html` — HTML entry point
-- `frontend/package.json` — npm packages
-- `frontend/vite.config.js` — Dev server config
-- `frontend/.env.example` — Frontend environment variables
+- `frontend/src/services/api.js` — All API functions (Person 5 imports from here only)
+- `frontend/src/hooks/useAuth.jsx` — Auth state
+- `frontend/src/main.jsx` — Routing
+- `frontend/src/index.css` — Design system variables and global styles
+- `frontend/src/components/Navbar.jsx` — Nav bar
+- `frontend/src/components/MapView.jsx` — Leaflet map with UP/Bihar pins
+- `frontend/package.json`, `frontend/vite.config.js`
 
 **Your tasks:**
-- [ ] Make sure `npm run dev` works and the app loads at http://localhost:5173
-- [ ] Keep `api.js` updated — if a new backend endpoint exists, add a function here
-- [ ] Make sure login/logout works and the JWT token is saved in localStorage
-- [ ] If Person 5 needs a new API call, YOU add it to `api.js` and tell them the function name
-- [ ] Keep global styles consistent — shared button, card, alert styles live in `index.css`
-- [ ] Add any new shared components (e.g. a loading spinner, a modal) in `frontend/src/components/`
+- [ ] Set up design system: CSS variables for color, font, radius, shadow
+- [ ] Build `MapView.jsx` — Leaflet map with 5 pins: Lucknow, Varanasi, Gorakhpur, Patna, Kanpur. Each pin shows circle name on click.
+- [ ] Add `GET /admin/stats` call to `api.js` for the impact counter
+- [ ] Make sure `npm run dev` works before Person 5 starts
+- [ ] If Person 5 needs a new API call, add it to `api.js` and tell them the function name
 
 **DO NOT touch:** Anything inside `backend/`
-**Rule for your team:** Person 5 imports from `../services/api.js` — they never write `fetch()` or `axios()` calls themselves.
 
 ---
 
 ### 🟢 PERSON 5 — Frontend Dev
-**Focus: All User Pages**
+**Focus: The 3 wow-moment UI components**
 
-You're building ALL the user-facing pages — from onboarding to the main app screens. Person 4 handles the infrastructure; you build what users actually see and interact with.
+You build what judges see. Focus on the 3 demo moments — get those perfect before touching anything else.
+
+**Animate exactly 2 things (nothing else should move):**
+1. **Trust Score ring** — SVG circle that fills from old score to new score over 1.5s when payment is made
+2. **Payment badge** — flips from `pending` (grey) → `paid` (green #1D9E75) when contribution lands
 
 **Your files:**
+- `frontend/src/pages/Dashboard.jsx` — Impact counter + circle list + map
+- `frontend/src/pages/TrustScore.jsx` — Animated SVG ring + score number
+- `frontend/src/pages/Circles.jsx` — Member cards with real Indian names, payment badges
 - `frontend/src/pages/Login.jsx` — Login form
-- `frontend/src/pages/Register.jsx` — Registration form with language + gender + state
-- `frontend/src/pages/Dashboard.jsx` — Home screen after login: shows trust score + circle summary
-- `frontend/src/pages/TrustScore.jsx` — Shows score, chart, recompute button, fairness audit results
-- `frontend/src/pages/Circles.jsx` — List circles, create new circle, join a circle, pay contribution
-- `frontend/src/pages/Consent.jsx` — DPDP Act consent toggles + financial passport download
-- `frontend/src/pages/Facilitator.jsx` — NGO mode: add offline member + record cash contribution
+- `frontend/src/pages/Register.jsx` — Register form
+
+**Member cards must show real data:**
+```
+ Priya Sharma     — Lucknow    — Score: 742  — ✅ Paid ₹2,000
+ Rahul Verma      — Varanasi   — Score: 681  — ✅ Paid ₹1,500  (28 May)
+ Sunita Devi      — Gorakhpur  — Score: 598  — ⏳ Pending
+ Amit Yadav       — Patna      — Score: 720  — ✅ Paid ₹1,800
+ Meera Patel      — Kanpur     — Score: 655  — ⏳ Pending
+```
+
+**Impact counter on Dashboard (Wow Moment #3):**
+```
+47 credit identities created
+₹3,40,000 secured
+12 active circles
+```
+Animate these numbers counting up from 0 when the page loads.
 
 **Your tasks:**
-- [ ] Login should redirect to `/dashboard` on success, show error on failure
-- [ ] Register form must include: phone, name, password, gender (optional), state (optional), language dropdown
-- [ ] Dashboard should show the user's latest trust score and list of active circles
-- [ ] Trust Score page should have the circular score badge and a "Recompute" button
-- [ ] Circles page should let users create a circle, join using a Circle ID, and pay a contribution
-- [ ] After paying, show the updated pool balance and reinsurance buffer amount
-- [ ] Consent page must clearly label what each toggle does (e.g. "Share with NBFC Partners")
-- [ ] Financial passport download must trigger a `.json` file download
-- [ ] Facilitator page has two forms: "Add Offline Member" and "Record Cash Contribution"
-- [ ] If you need a new API call, ask Person 4 to add it to `api.js` first
-- [ ] Make the forms accessible and mobile-friendly (important for rural users)
+- [ ] Build the animated SVG trust score ring (CSS animation, not a library)
+- [ ] Build member cards with the real names/data above
+- [ ] Build the impact counter with count-up animation
+- [ ] Payment badge: grey "Pending" → green "Paid" flip on contribute
+- [ ] Import all API calls from `../services/api.js` only — never write fetch/axios directly
+- [ ] Mobile-friendly layout (judges may check on phones)
 
 **DO NOT touch:** Anything inside `backend/`
-**DO NOT write** `axios.get(...)` or `fetch(...)` directly — always use functions from `../services/api.js`
 
 ---
 
@@ -263,11 +302,26 @@ Help me understand what this file does and how it connects to the rest of the pr
 
 ```
 I'm working on the TrustCircle FastAPI backend.
+This is a demo for a hackathon — we need 3 working endpoints: create circle, add payment, get trust score.
 The project uses SQLAlchemy ORM, JWT auth (python-jose), and PostgreSQL.
 My task is: [describe your task]
 Here is my current file: [paste file]
 Help me implement this without breaking the existing structure.
+Keep it minimal — we are building a demo, not a production system.
 Only modify backend files. Do not suggest any frontend changes.
+```
+
+---
+
+### For PERSON 3 — WhatsApp bot specifically
+
+```
+I'm building a WhatsApp bot using Twilio Sandbox for TrustCircle, a fintech ROSCA platform.
+The bot needs to handle 3 commands: "balance", "score", "status".
+Framework: FastAPI. Twilio sends a POST to /whatsapp/incoming with "Body" field containing the message.
+Reply using Twilio's MessagingResponse XML format.
+Here is my current file: [paste file]
+Help me implement the 3 command handlers with realistic Indian demo data.
 ```
 
 ---
@@ -275,12 +329,27 @@ Only modify backend files. Do not suggest any frontend changes.
 ### For PERSON 4 & 5 — Frontend (beginner-friendly)
 
 ```
-I'm a beginner React developer working on TrustCircle, a fintech web app.
-The frontend uses React 18, React Router v6, and Axios for API calls.
-All API functions are already written in frontend/src/services/api.js — I should import from there, never write fetch() or axios() directly.
-My task is: [describe your task, e.g. "make the login form show an error message if the password is wrong"]
+I'm a beginner React developer working on TrustCircle, a fintech demo app for a hackathon.
+The frontend uses React 18, React Router v6, and Axios.
+Design system: font is Sora (Google Fonts), accent color is #1D9E75 (green), border-radius 12px everywhere.
+All API functions are in frontend/src/services/api.js — import from there, never write fetch() or axios() directly.
+My task is: [describe your task]
 Here is my current file: [paste your file]
-Explain what you're doing step by step. Keep the code simple.
+Explain what you're doing step by step. Keep the code simple and clean.
+```
+
+---
+
+### For PERSON 5 — animated Trust Score ring specifically
+
+```
+I need to build an animated SVG circle (ring) in React that:
+- Shows a trust score number (e.g. 742) in the center
+- The ring fills from 0 to the score value over 1.5 seconds using CSS animation
+- When the score updates (e.g. from 681 to 710 after a payment), the ring animates from old to new value
+- Uses stroke-dashoffset animation on an SVG circle element
+- Color is #1D9E75, background ring is #E8F5F1
+No animation libraries. Pure CSS + React useState/useEffect only.
 ```
 
 ---
