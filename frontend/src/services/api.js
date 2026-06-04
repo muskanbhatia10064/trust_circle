@@ -38,4 +38,9 @@ export const facilitatorApi = {
   proxyContribute: (data) => api.post('/facilitator/proxy-contribution', data),
 }
 
-export default api
+export const adminApi = {
+  getStats: () => api.get('/trust-score/admin/stats'),
+}
+
+export default api;
+
