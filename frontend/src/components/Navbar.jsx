@@ -3,9 +3,13 @@ import { useAuth } from '../hooks/useAuth'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
+
   return (
-    <nav>
-      <Link to="/" style={{ fontWeight: 700, fontSize: '1.1rem' }}>🔵 TrustCircle</Link>
+    <nav className="navbar">
+      <Link to="/" className="logo">
+        TrustCircle
+      </Link>
+
       {user ? (
         <>
           <Link to="/dashboard">Dashboard</Link>
@@ -13,11 +17,17 @@ export default function Navbar() {
           <Link to="/trust-score">Trust Score</Link>
           <Link to="/consent">Consent</Link>
           <Link to="/facilitator">Facilitator</Link>
-          <button onClick={logout} style={{ marginLeft: 'auto' }} className="danger">Logout</button>
+
+          <button
+            onClick={logout}
+            className="btn logout-btn"
+          >
+            Logout
+          </button>
         </>
       ) : (
         <>
-          <Link to="/login" style={{ marginLeft: 'auto' }}>Login</Link>
+          <Link to="/login" className="ml-auto">Login</Link>
           <Link to="/register">Register</Link>
         </>
       )}

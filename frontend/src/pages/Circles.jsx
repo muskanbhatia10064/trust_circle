@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { circleApi } from '../services/api'
+import MapView from '../components/MapView'
 
 export default function Circles() {
   const [circles, setCircles] = useState([])
@@ -83,6 +84,7 @@ export default function Circles() {
           </form>
         </div>
       </div>
+        <MapView />
     </div>
   )
 }
