@@ -115,7 +115,7 @@ class User(Base):
 
     # Relationships
     created_circles: Mapped[list["Circle"]] = relationship(
-        "Circle", back_populates="creator", cascade="all, delete-orphan", lazy="select"
+        "Circle", foreign_keys="[Circle.created_by]", back_populates="creator", cascade="all, delete-orphan", lazy="select"
     )
     memberships: Mapped[list["Membership"]] = relationship(
         "Membership", back_populates="user", cascade="all, delete-orphan", lazy="select"
