@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.config import settings
@@ -36,7 +36,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 class TokenData(BaseModel):
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     role: Optional[UserRole] = None
 
 # ====================================================
