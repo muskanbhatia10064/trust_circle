@@ -1,90 +1,235 @@
-import { useEffect, useState } from 'react'
-import { circleApi } from '../services/api'
-import MapView from '../components/MapView'
+// FILE: frontend/src/pages/Circles.jsx
+
+import { useEffect, useRef, useState } from "react";
+
+const MEMBERS_DATA = [
+  { id: 1, name: "Priya Sharma", city: "Lucknow", score: 742, status: "paid", amount: 2000, date: "01 Jun", initials: "PS" },
+  { id: 2, name: "Rahul Verma", city: "Varanasi", score: 681, status: "paid", amount: 1500, date: "28 May", initials: "RV" },
+  { id: 3, name: "Sunita Devi", city: "Gorakhpur", score: 598, status: "pending", amount: null, date: null, initials: "SD" },
+  { id: 4, name: "Amit Yadav", city: "Patna", score: 720, status: "paid", amount: 1800, date: "30 May", initials: "AY" },
+  { id: 5, name: "Meera Patel", city: "Kanpur", score: 655, status: "pending", amount: null, date: null, initials: "MP" },
+];
+
+function getScoreColor(score) {
+  if (score >= 720) return "#1D9E75";
+  if (score >= 650) return "#27AE87";
+  if (score >= 580) return "#E8A020";
+  return "#E05252";
+}
+
+function getScoreLabel(score) {
+  if (score >= 720) return "Excellent";
+  if (score >= 650) return "Good";
+  if (score >= 580) return "Fair";
+  return "Poor";
+}
+
+function FlipBadge({ status }) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState(status);
+  const prevStatus = useRef(status);
+
+  useEffect(() => {
+    if (prevStatus.current !== status) {
+      setIsFlipped(true);
+      const timer = setTimeout(() => {
+        setCurrentStatus(status);
+        prevStatus.current = status;
+        setIsFlipped(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [status]);
+
+  const isPaid = currentStatus === "paid";
+  return (
+    <div style={{ ...styles.flipBadgeOuter, transform: isFlipped ? "rotateY(90deg)" : "rotateY(0deg)", transition: "transform 0.35s ease-in-out" }}>
+      <div style={{ ...styles.flipBadge, background: isPaid ? "#E8F5F1" : "#F5F5F5", color: isPaid ? "#1D9E75" : "#909090", border: `1.5px solid ${isPaid ? "#B8E0D0" : "#E0E0E0"}` }}>
+        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: isPaid ? "#1D9E75" : "#BBBBBB", display: "inline-block" }} />
+        {isPaid ? "Paid" : "Pending"}
+      </div>
+    </div>
+  );
+}
+
+function ScoreArc({ score }) {
+  const RADIUS = 18, STROKE = 3;
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+  const offset = CIRCUMFERENCE * (1 - score / 850);
+  const color = getScoreColor(score);
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r={RADIUS} fill="none" stroke="#F0F4F8" strokeWidth={STROKE} />
+      <circle cx="24" cy="24" r={RADIUS} fill="none" stroke={color} strokeWidth={STROKE} strokeLinecap="round"
+        strokeDasharray={CIRCUMFERENCE} strokeDashoffset={offset}
+        style={{ transform: "rotate(-90deg)", transformOrigin: "center", transition: "stroke-dashoffset 0.8s ease" }}
+      />
+    </svg>
+  );
+}
+
+function MemberCard({ member, onToggle }) {
+  const [hovered, setHovered] = useState(false);
+  const scoreColor = getScoreColor(member.score);
+  return (
+    <div
+      style={{ ...styles.card, boxShadow: hovered ? "0 8px 28px rgba(0,0,0,0.10)" : styles.card.boxShadow, transform: hovered ? "translateY(-2px)" : "translateY(0)" }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <div style={styles.cardTop}>
+        <div style={styles.avatarWrapper}>
+          <div style={{ ...styles.avatar, background: `linear-gradient(135deg, ${scoreColor}, ${scoreColor}CC)` }}>{member.initials}</div>
+          <div style={styles.scoreArcOverlay}><ScoreArc score={member.score} /></div>
+        </div>
+        <div style={styles.nameBlock}>
+          <div style={styles.memberName}>{member.name}</div>
+          <div style={styles.memberCity}>📍 {member.city}</div>
+        </div>
+        <FlipBadge status={member.status} />
+      </div>
+
+      <div style={styles.scoreRow}>
+        <div style={styles.scoreBlock}>
+          <div style={{ ...styles.scoreValue, color: scoreColor }}>{member.score}</div>
+          <div style={styles.scoreText}>Trust Score</div>
+        </div>
+        <div style={{ ...styles.scorePill, background: `${scoreColor}18`, color: scoreColor }}>{getScoreLabel(member.score)}</div>
+      </div>
+
+      <div style={styles.paymentRow}>
+        {member.status === "paid" ? (
+          <div style={styles.paymentInfo}>
+            <span style={styles.paymentIcon}>✓</span>
+            <span style={styles.paymentAmount}>₹{member.amount?.toLocaleString("en-IN")}</span>
+            <span style={styles.paymentDate}>{member.date}</span>
+          </div>
+        ) : (
+          <div style={styles.paymentPending}>
+            <span>⏳</span>
+            <span style={{ fontSize: "13px", color: "#B0A060", fontWeight: "500" }}>Payment due</span>
+          </div>
+        )}
+        <button style={styles.toggleBtn} onClick={() => onToggle(member.id)}>
+          {member.status === "paid" ? "Mark Pending" : "Mark Paid"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function Circles() {
-  const [circles, setCircles] = useState([])
-  const [form, setForm] = useState({ name: '', contribution_amount: '', cycle_days: 30 })
-  const [joinId, setJoinId] = useState('')
-  const [contribution, setContribution] = useState({ circle_id: '', amount: '' })
-  const [msg, setMsg] = useState('')
+  const [members, setMembers] = useState(MEMBERS_DATA);
+  const [filter, setFilter] = useState("all");
 
-  const load = () => circleApi.list().then(r => setCircles(r.data)).catch(() => {})
-  useEffect(() => { load() }, [])
+  const handleToggle = (id) => {
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.id === id
+          ? { ...m, status: m.status === "paid" ? "pending" : "paid", amount: m.status === "pending" ? 2000 : null, date: m.status === "pending" ? "Now" : null }
+          : m
+      )
+    );
+  };
 
-  const notify = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3000) }
-
-  async function createCircle(e) {
-    e.preventDefault()
-    await circleApi.create({ ...form, contribution_amount: parseFloat(form.contribution_amount) })
-    notify('Circle created!')
-    load()
-  }
-
-  async function joinCircle(e) {
-    e.preventDefault()
-    await circleApi.join(joinId)
-    notify('Joined circle!')
-    load()
-  }
-
-  async function contribute(e) {
-    e.preventDefault()
-    const r = await circleApi.contribute(contribution.circle_id, parseFloat(contribution.amount))
-    notify(`Contributed! Pool: ₹${r.data.pool_balance} | Reinsurance: ₹${r.data.reinsurance_balance}`)
-    load()
-  }
+  const filtered = members.filter((m) => filter === "all" ? true : m.status === filter);
+  const paidCount = members.filter((m) => m.status === "paid").length;
+  const pendingCount = members.filter((m) => m.status === "pending").length;
+  const totalPool = members.filter((m) => m.status === "paid").reduce((sum, m) => sum + (m.amount || 0), 0);
 
   return (
-    <div className="page">
-      <h1 style={{ marginBottom: '1.5rem' }}>My Circles</h1>
-      {msg && <div className="alert success">{msg}</div>}
-
-      <div className="card">
-        <h3>My Active Circles</h3>
-        {circles.length === 0 ? <p>No circles yet.</p> : circles.map(c => (
-          <div key={c.id} style={{ padding: '0.6rem 0', borderBottom: '1px solid #eee' }}>
-            <strong>{c.name}</strong>
-            <span className="tag">{c.status}</span>
-            <span style={{ float: 'right' }}>Pool: ₹{c.pool_balance} | Buffer: ₹{c.reinsurance_balance}</span>
-            <div style={{ fontSize: '0.8rem', color: '#666' }}>ID: {c.id} | ₹{c.contribution_amount}/cycle</div>
+    <div style={styles.page}>
+      <div style={styles.container}>
+        <div style={styles.pageHeader}>
+          <div>
+            <h1 style={styles.pageTitle}>Mahila Bachat Mandal</h1>
+            <p style={styles.pageSub}>June 2025 cycle · 5 members</p>
           </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', flexWrap: 'wrap' }}>
-        <div className="card">
-          <h3>Create Circle</h3>
-          <form onSubmit={createCircle}>
-            <label>Name</label>
-            <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-            <label>Monthly Contribution (₹)</label>
-            <input type="number" value={form.contribution_amount} onChange={e => setForm({ ...form, contribution_amount: e.target.value })} required />
-            <label>Cycle Days</label>
-            <input type="number" value={form.cycle_days} onChange={e => setForm({ ...form, cycle_days: +e.target.value })} />
-            <button type="submit">Create</button>
-          </form>
+          <div style={styles.poolBadge}>
+            <span style={{ display: "block", fontSize: "11px", opacity: 0.8, marginBottom: "2px" }}>Pool</span>
+            <span style={{ display: "block", fontSize: "22px", fontWeight: "700" }}>₹{totalPool.toLocaleString("en-IN")}</span>
+          </div>
         </div>
 
-        <div className="card">
-          <h3>Join a Circle</h3>
-          <form onSubmit={joinCircle}>
-            <label>Circle ID</label>
-            <input value={joinId} onChange={e => setJoinId(e.target.value)} required />
-            <button type="submit">Join</button>
-          </form>
-
-          <h3 style={{ marginTop: '1.5rem' }}>Pay Contribution</h3>
-          <form onSubmit={contribute}>
-            <label>Circle ID</label>
-            <input value={contribution.circle_id} onChange={e => setContribution({ ...contribution, circle_id: e.target.value })} required />
-            <label>Amount (₹)</label>
-            <input type="number" value={contribution.amount} onChange={e => setContribution({ ...contribution, amount: e.target.value })} required />
-            <button type="submit">Pay</button>
-          </form>
+        <div style={styles.statsRow}>
+          {[
+            { value: paidCount, label: "Paid", color: "#1D9E75" },
+            { value: pendingCount, label: "Pending", color: "#E8A020" },
+            { value: `${Math.round((paidCount / members.length) * 100)}%`, label: "Completion", color: "#1D9E75" },
+            { value: "15 Jun", label: "Next Payout", color: "#1D9E75" },
+          ].map((s) => (
+            <div key={s.label} style={styles.statCard}>
+              <div style={{ ...styles.statValue, color: s.color }}>{s.value}</div>
+              <div style={styles.statLabel}>{s.label}</div>
+            </div>
+          ))}
         </div>
+
+        <div style={{ marginBottom: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#6B7A8D", marginBottom: "8px" }}>
+            <span>Collection Progress</span>
+            <span style={{ color: "#1D9E75", fontWeight: "600" }}>{paidCount}/{members.length}</span>
+          </div>
+          <div style={{ height: "8px", background: "#E8F5F1", borderRadius: "100px", overflow: "hidden" }}>
+            <div style={{ height: "100%", background: "linear-gradient(90deg, #1D9E75, #27AE87)", borderRadius: "100px", width: `${(paidCount / members.length) * 100}%`, transition: "width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)" }} />
+          </div>
+        </div>
+
+        <div style={styles.filterRow}>
+          {["all", "paid", "pending"].map((f) => (
+            <button key={f} style={{ ...styles.filterBtn, background: filter === f ? "#1D9E75" : "#FFFFFF", color: filter === f ? "#FFFFFF" : "#6B7A8D" }} onClick={() => setFilter(f)}>
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+              <span style={{ borderRadius: "100px", padding: "1px 7px", fontSize: "11px", fontWeight: "700", background: filter === f ? "rgba(255,255,255,0.2)" : "#F0F4F8", color: filter === f ? "#fff" : "#8899AA" }}>
+                {f === "all" ? members.length : f === "paid" ? paidCount : pendingCount}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div style={styles.grid}>
+          {filtered.map((member) => <MemberCard key={member.id} member={member} onToggle={handleToggle} />)}
+        </div>
+        {filtered.length === 0 && <div style={{ textAlign: "center", color: "#A0ADB8", padding: "48px" }}>No members match this filter.</div>}
       </div>
-        <MapView />
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');`}</style>
     </div>
-  )
+  );
 }
+
+const styles = {
+  page: { fontFamily: "'Sora', sans-serif", background: "#F7F9FC", minHeight: "100vh", paddingBottom: "60px" },
+  container: { maxWidth: "1100px", margin: "0 auto", padding: "40px 24px" },
+  pageHeader: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "28px", flexWrap: "wrap", gap: "16px" },
+  pageTitle: { fontSize: "26px", fontWeight: "700", color: "#1A2332", margin: "0 0 4px" },
+  pageSub: { fontSize: "14px", color: "#8899AA", margin: 0 },
+  poolBadge: { background: "linear-gradient(135deg, #1D9E75, #0E7A5A)", borderRadius: "14px", padding: "16px 24px", textAlign: "center", color: "#fff", boxShadow: "0 4px 16px rgba(29,158,117,0.3)" },
+  statsRow: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" },
+  statCard: { background: "#FFFFFF", borderRadius: "12px", padding: "16px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" },
+  statValue: { fontSize: "22px", fontWeight: "700", lineHeight: 1, marginBottom: "4px" },
+  statLabel: { fontSize: "11px", color: "#8899AA", fontWeight: "500" },
+  filterRow: { display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" },
+  filterBtn: { border: "none", borderRadius: "100px", padding: "8px 18px", fontSize: "13px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif", display: "flex", alignItems: "center", gap: "8px", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" },
+  card: { background: "#FFFFFF", borderRadius: "16px", padding: "22px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", transition: "box-shadow 0.25s, transform 0.25s" },
+  cardTop: { display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" },
+  avatarWrapper: { position: "relative", flexShrink: 0 },
+  avatar: { width: "44px", height: "44px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "13px", fontWeight: "700" },
+  scoreArcOverlay: { position: "absolute", top: "-2px", left: "-2px", pointerEvents: "none" },
+  nameBlock: { flex: 1, minWidth: 0 },
+  memberName: { fontSize: "15px", fontWeight: "600", color: "#1A2332", marginBottom: "3px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  memberCity: { fontSize: "12px", color: "#8899AA" },
+  flipBadgeOuter: { perspective: "600px", flexShrink: 0 },
+  flipBadge: { borderRadius: "100px", padding: "5px 12px", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "5px", whiteSpace: "nowrap" },
+  scoreRow: { display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F7F9FC", borderRadius: "10px", padding: "12px 16px", marginBottom: "14px" },
+  scoreBlock: { display: "flex", alignItems: "baseline", gap: "6px" },
+  scoreValue: { fontSize: "24px", fontWeight: "700", fontVariantNumeric: "tabular-nums" },
+  scoreText: { fontSize: "12px", color: "#8899AA" },
+  scorePill: { borderRadius: "100px", padding: "4px 12px", fontSize: "11px", fontWeight: "700" },
+  paymentRow: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" },
+  paymentInfo: { display: "flex", alignItems: "center", gap: "6px" },
+  paymentIcon: { fontSize: "14px", color: "#1D9E75", fontWeight: "700" },
+  paymentAmount: { fontSize: "14px", fontWeight: "700", color: "#1A2332" },
+  paymentDate: { fontSize: "12px", color: "#8899AA" },
+  paymentPending: { display: "flex", alignItems: "center", gap: "6px" },
+  toggleBtn: { background: "transparent", border: "1px solid #E0E8F0", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", color: "#7A8B9A", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
+};
