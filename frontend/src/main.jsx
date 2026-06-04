@@ -8,8 +8,6 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Circles from './pages/Circles'
 import TrustScore from './pages/TrustScore'
-import Consent from './pages/Consent'
-import Facilitator from './pages/Facilitator'
 import WhatsAppBot from './pages/WhatsAppBot'
 import './index.css'
 
@@ -30,8 +28,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/circles" element={<PrivateRoute><Circles /></PrivateRoute>} />
           <Route path="/trust-score" element={<PrivateRoute><TrustScore /></PrivateRoute>} />
-          <Route path="/consent" element={<PrivateRoute><Consent /></PrivateRoute>} />
-          <Route path="/facilitator" element={<PrivateRoute><Facilitator /></PrivateRoute>} />
           <Route path="/whatsapp-bot" element={<PrivateRoute><WhatsAppBot /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
