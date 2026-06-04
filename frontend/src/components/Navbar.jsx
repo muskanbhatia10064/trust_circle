@@ -15,8 +15,6 @@ export default function Navbar() {
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/circles">Circles</Link>
           <Link to="/trust-score">Trust Score</Link>
-          <Link to="/consent">Consent</Link>
-          <Link to="/facilitator">Facilitator</Link>
           <Link to="/whatsapp-bot">WhatsApp Bot</Link>
 
           <button
