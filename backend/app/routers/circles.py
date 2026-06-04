@@ -28,6 +28,15 @@ class ContributeRequest(BaseModel):
     amount: float
 
 
+class InviteRequest(BaseModel):
+    phone: str
+
+
+class TicketRequest(BaseModel):
+    against_user_id: int
+    reason: str
+
+
 def _circle_dict(circle):
     return {
         "id": circle.id,
@@ -300,6 +309,102 @@ def confirm_received(
     circle.current_round += 1
     db.commit()
     return {"message": "Payout confirmed! QR removed. Next round ready.", "round": circle.current_round}
+
+
+@router.post("/{circle_id}/invite")
+def invite_member(
+    circle_id: int,
+    body: InviteRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin adds a member by phone number."""
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle admin can invite members")
+    target = db.query(User).filter(User.phone_number == body.phone).first()
+    if not target:
+        raise HTTPException(status_code=404, detail=f"No user found with phone {body.phone}")
+    existing = db.query(Membership).filter(
+        Membership.circle_id == circle_id, Membership.user_id == target.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="User is already in this circle")
+    db.add(Membership(circle_id=circle_id, user_id=target.id))
+    db.commit()
+    return {"message": f"{target.full_name or target.name} added to circle", "user_id": target.id}
+
+
+@router.get("/{circle_id}/invite-link")
+def get_invite_link(
+    circle_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Returns the circle join code/link for sharing."""
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle admin can get the invite link")
+    return {"code": circle.code, "link": f"Join TrustCircle '{circle.name}' using code: {circle.code}"}
+
+
+@router.post("/{circle_id}/raise-ticket")
+def raise_ticket(
+    circle_id: int,
+    body: TicketRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin raises a dispute ticket against a non-paying member."""
+    from datetime import datetime
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle admin can raise tickets")
+    target = db.query(User).filter(User.id == body.against_user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    membership = db.query(Membership).filter(
+        Membership.circle_id == circle_id, Membership.user_id == body.against_user_id
+    ).first()
+    if not membership:
+        raise HTTPException(status_code=404, detail="User is not in this circle")
+    from sqlalchemy import text
+    db.execute(text(
+        "INSERT INTO dispute_tickets (circle_id, raised_by, against_user_id, reason) VALUES (:c, :r, :a, :reason)"
+    ), {"c": circle_id, "r": current_user.id, "a": body.against_user_id, "reason": body.reason})
+    db.commit()
+    return {
+        "message": f"Ticket raised against {target.full_name or target.name}",
+        "against": target.full_name or target.name,
+        "reason": body.reason,
+    }
+
+
+@router.get("/{circle_id}/tickets")
+def get_tickets(
+    circle_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all dispute tickets for a circle (admin only)."""
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle admin can view tickets")
+    from sqlalchemy import text
+    rows = db.execute(text(
+        "SELECT dt.id, dt.against_user_id, dt.reason, dt.status, dt.created_at, u.full_name, u.phone_number "
+        "FROM dispute_tickets dt JOIN users u ON u.id = dt.against_user_id "
+        "WHERE dt.circle_id = :c ORDER BY dt.created_at DESC"
+    ), {"c": circle_id}).fetchall()
+    return [{"id": r[0], "against_user_id": r[1], "reason": r[2], "status": r[3], "created_at": str(r[4]), "name": r[5], "phone": r[6]} for r in rows]
 
 
 @router.get("/{circle_id}/members")

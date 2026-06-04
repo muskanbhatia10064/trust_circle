@@ -63,7 +63,7 @@ function ScoreArc({ score }) {
   );
 }
 
-function MemberCard({ member }) {
+function MemberCard({ member, isAdmin, onRaiseTicket }) {
   const [hovered, setHovered] = useState(false);
   const scoreColor = getScoreColor(member.trust_score);
   const isPaid = member.payment_status === "paid";
@@ -94,18 +94,26 @@ function MemberCard({ member }) {
         <div style={{ borderRadius: "100px", padding: "4px 12px", fontSize: "11px", fontWeight: "700", background: `${scoreColor}18`, color: scoreColor }}>{getScoreLabel(member.trust_score)}</div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        {isPaid ? (
-          <>
-            <span style={{ fontSize: "14px", color: "#1D9E75", fontWeight: "700" }}>✓</span>
-            <span style={{ fontSize: "14px", fontWeight: "700", color: "#1A2332" }}>₹{member.last_paid_amount?.toLocaleString("en-IN") || "—"}</span>
-            <span style={{ fontSize: "12px", color: "#8899AA" }}>{member.last_paid_at ? new Date(member.last_paid_at).toLocaleDateString("en-IN") : ""}</span>
-          </>
-        ) : (
-          <>
-            <span>⏳</span>
-            <span style={{ fontSize: "13px", color: "#B0A060", fontWeight: "500" }}>Payment due</span>
-          </>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          {isPaid ? (
+            <>
+              <span style={{ fontSize: "14px", color: "#1D9E75", fontWeight: "700" }}>✓</span>
+              <span style={{ fontSize: "14px", fontWeight: "700", color: "#1A2332" }}>₹{member.last_paid_amount?.toLocaleString("en-IN") || "—"}</span>
+              <span style={{ fontSize: "12px", color: "#8899AA" }}>{member.last_paid_at ? new Date(member.last_paid_at).toLocaleDateString("en-IN") : ""}</span>
+            </>
+          ) : (
+            <>
+              <span>⏳</span>
+              <span style={{ fontSize: "13px", color: "#B0A060", fontWeight: "500" }}>Payment due</span>
+            </>
+          )}
+        </div>
+        {isAdmin && !isPaid && (
+          <button
+            onClick={() => onRaiseTicket(member)}
+            style={{ background: "#FFF0F0", color: "#E05252", border: "1.5px solid #F8C8C8", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
+          >🚨 Raise Ticket</button>
         )}
       </div>
     </div>
@@ -125,8 +133,15 @@ export default function Circles() {
   const [form, setForm] = useState({ name: "", contribution_amount: "", cycle_days: 30 });
   const [contributing, setContributing] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [payModal, setPayModal] = useState(null); // { circle, amount }
+  const [payModal, setPayModal] = useState(null);
   const [msg, setMsg] = useState("");
+  const [invitePhone, setInvitePhone] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
+  const [tickets, setTickets] = useState([]);
+  const [showTickets, setShowTickets] = useState(false);
+  const [ticketModal, setTicketModal] = useState(null); // { member }
+  const [ticketReason, setTicketReason] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
 
   const loadCircles = () =>
     circleApi.list().then(r => {
@@ -146,10 +161,12 @@ export default function Circles() {
   useEffect(() => {
     if (!selectedCircle) return;
     setMembersLoading(true);
+    setShowInvite(false); setShowTickets(false); setInviteLink("");
     circleApi.getMembers(selectedCircle.id)
       .then(r => setMembers(r.data))
       .catch(() => setMembers([]))
       .finally(() => setMembersLoading(false));
+    if (selectedCircle.created_by === user?.id) loadTickets(selectedCircle.id);
   }, [selectedCircle]);
 
   async function createCircle(e) {
@@ -190,6 +207,44 @@ export default function Circles() {
       setContributing(false);
       setTimeout(() => setMsg(""), 4000);
     }
+  }
+
+  async function handleInvite(e) {
+    e.preventDefault();
+    try {
+      const r = await circleApi.inviteMember(selectedCircle.id, invitePhone.trim());
+      setMsg(`✅ ${r.data.message}`);
+      setInvitePhone(""); setShowInvite(false);
+      const mr = await circleApi.getMembers(selectedCircle.id);
+      setMembers(mr.data);
+    } catch (err) { setMsg(err.response?.data?.detail || "Invite failed"); }
+    setTimeout(() => setMsg(""), 3000);
+  }
+
+  async function handleCopyLink() {
+    try {
+      const r = await circleApi.getInviteLink(selectedCircle.id);
+      setInviteLink(r.data.link);
+      navigator.clipboard?.writeText(r.data.link).catch(() => {});
+      setMsg("🔗 Invite link copied! Code: " + r.data.code);
+    } catch (err) { setMsg(err.response?.data?.detail || "Failed"); }
+    setTimeout(() => setMsg(""), 4000);
+  }
+
+  async function handleRaiseTicket(e) {
+    e.preventDefault();
+    try {
+      const r = await circleApi.raiseTicket(selectedCircle.id, ticketModal.user_id, ticketReason);
+      setMsg(`🚨 ${r.data.message}`);
+      setTicketModal(null); setTicketReason("");
+      const tr = await circleApi.getTickets(selectedCircle.id);
+      setTickets(tr.data);
+    } catch (err) { setMsg(err.response?.data?.detail || "Failed to raise ticket"); }
+    setTimeout(() => setMsg(""), 3000);
+  }
+
+  async function loadTickets(circleId) {
+    try { const r = await circleApi.getTickets(circleId); setTickets(r.data); } catch { setTickets([]); }
   }
 
   async function handleConfirmReceived(circleId) {
@@ -331,13 +386,58 @@ export default function Circles() {
             <div style={styles.pageHeader}>
               <div>
                 <h2 style={styles.pageTitle}>{selectedCircle.name}</h2>
-                <p style={styles.pageSub}>{members.length} members</p>
+                <p style={styles.pageSub}>{members.length} members · Code: <strong>{selectedCircle.code}</strong></p>
               </div>
               <div style={styles.poolBadge}>
                 <span style={{ display: "block", fontSize: "11px", opacity: 0.8, marginBottom: "2px" }}>Pool</span>
                 <span style={{ display: "block", fontSize: "22px", fontWeight: "700" }}>₹{selectedCircle.pool_balance?.toLocaleString("en-IN")}</span>
               </div>
             </div>
+
+            {/* Admin panel */}
+            {selectedCircle.created_by === user?.id && (
+              <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", marginBottom: "24px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1.5px solid #E8F5F1" }}>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#1A2332", marginBottom: "14px" }}>⚙️ Admin Panel</div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: showInvite ? "14px" : 0 }}>
+                  <button style={styles.adminBtn} onClick={() => setShowInvite(v => !v)}>➕ Add by Phone</button>
+                  <button style={styles.adminBtn} onClick={handleCopyLink}>🔗 Copy Invite Link</button>
+                  <button style={{ ...styles.adminBtn, background: "#FFF0F0", color: "#E05252", border: "1.5px solid #F8C8C8" }} onClick={() => setShowTickets(v => !v)}>
+                    🚨 Tickets {tickets.length > 0 && `(${tickets.length})`}
+                  </button>
+                </div>
+
+                {inviteLink && <div style={{ fontSize: "12px", color: "#1D9E75", background: "#E8F5F1", borderRadius: "8px", padding: "8px 12px", marginBottom: "10px", wordBreak: "break-all" }}>{inviteLink}</div>}
+
+                {showInvite && (
+                  <form onSubmit={handleInvite} style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                    <input
+                      placeholder="Member phone number"
+                      value={invitePhone}
+                      onChange={e => setInvitePhone(e.target.value)}
+                      required
+                      style={{ ...styles.input, flex: 1, margin: 0 }}
+                    />
+                    <button type="submit" style={styles.createBtn}>Add</button>
+                    <button type="button" onClick={() => setShowInvite(false)} style={styles.cancelBtn}>Cancel</button>
+                  </form>
+                )}
+
+                {showTickets && (
+                  <div style={{ marginTop: "14px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: "700", color: "#E05252", marginBottom: "8px" }}>Dispute Tickets</div>
+                    {tickets.length === 0
+                      ? <div style={{ fontSize: "12px", color: "#8899AA" }}>No tickets raised yet.</div>
+                      : tickets.map(t => (
+                        <div key={t.id} style={{ background: "#FFF8F8", border: "1px solid #F8C8C8", borderRadius: "8px", padding: "10px 14px", marginBottom: "8px", fontSize: "13px" }}>
+                          <strong>{t.name}</strong> ({t.phone}) — {t.reason}
+                          <span style={{ float: "right", fontSize: "11px", color: "#E05252", fontWeight: "600" }}>{t.status}</span>
+                        </div>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+            )}
 
             {members.length > 0 && (
               <>
@@ -383,7 +483,14 @@ export default function Circles() {
               <div style={styles.emptyBox}>No members found for this circle.</div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
-                {filtered.map((m, i) => <MemberCard key={m.user_id || i} member={m} />)}
+                {filtered.map((m, i) => (
+                  <MemberCard
+                    key={m.user_id || i}
+                    member={m}
+                    isAdmin={selectedCircle.created_by === user?.id}
+                    onRaiseTicket={setTicketModal}
+                  />
+                ))}
               </div>
             )}
           </>
@@ -397,6 +504,29 @@ export default function Circles() {
           onConfirm={handlePayConfirm}
           onClose={() => setPayModal(null)}
         />
+      )}
+
+      {ticketModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
+          <div style={{ background: "#fff", borderRadius: "16px", padding: "28px", width: "100%", maxWidth: "400px", fontFamily: "'Sora', sans-serif" }}>
+            <div style={{ fontSize: "16px", fontWeight: "700", marginBottom: "6px" }}>🚨 Raise Ticket</div>
+            <div style={{ fontSize: "13px", color: "#6B7A8D", marginBottom: "16px" }}>Against: <strong>{ticketModal.name}</strong></div>
+            <form onSubmit={handleRaiseTicket} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <textarea
+                placeholder="Reason (e.g. missed payment for 2 months)"
+                value={ticketReason}
+                onChange={e => setTicketReason(e.target.value)}
+                required
+                rows={3}
+                style={{ ...styles.input, resize: "vertical" }}
+              />
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button type="submit" style={{ ...styles.createBtn, background: "#E05252" }}>Submit Ticket</button>
+                <button type="button" onClick={() => { setTicketModal(null); setTicketReason(""); }} style={styles.cancelBtn}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');`}</style>
     </div>
@@ -424,4 +554,5 @@ const styles = {
   cardTop: { display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" },
   msgBanner: { background: "#E8F5F1", border: "1px solid #B8E0D0", borderRadius: "10px", padding: "12px 16px", fontSize: "13px", color: "#0E7A5A", fontWeight: "500", marginBottom: "20px" },
   emptyBox: { background: "#fff", borderRadius: "12px", padding: "40px", textAlign: "center", color: "#8899AA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", marginBottom: "24px" },
+  adminBtn: { background: "#F0FAF5", color: "#1D9E75", border: "1.5px solid #B8E0D0", borderRadius: "8px", padding: "8px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer", fontFamily: "'Sora', sans-serif" },
 };

@@ -31,6 +31,10 @@ export const circleApi = {
   getPayoutStatus: (id) => api.get(`/circles/${id}/payout-status`),
   assignReceiver: (id) => api.post(`/circles/${id}/assign-receiver`),
   confirmReceived: (id) => api.post(`/circles/${id}/confirm-received`),
+  inviteMember: (id, phone) => api.post(`/circles/${id}/invite`, { phone }),
+  getInviteLink: (id) => api.get(`/circles/${id}/invite-link`),
+  raiseTicket: (id, against_user_id, reason) => api.post(`/circles/${id}/raise-ticket`, { against_user_id, reason }),
+  getTickets: (id) => api.get(`/circles/${id}/tickets`),
 }
 
 export const consentApi = {
