@@ -115,6 +115,7 @@ function MemberCard({ member }) {
 export default function Circles() {
   const { user } = useAuth();
   const [circles, setCircles] = useState([]);
+  const [payoutStatus, setPayoutStatus] = useState({}); // circle_id -> payout status
   const [selectedCircle, setSelectedCircle] = useState(null);
   const [members, setMembers] = useState([]);
   const [filter, setFilter] = useState("all");
@@ -123,11 +124,20 @@ export default function Circles() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: "", contribution_amount: "", cycle_days: 30 });
   const [contributing, setContributing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [payModal, setPayModal] = useState(null); // { circle, amount }
   const [msg, setMsg] = useState("");
 
   const loadCircles = () =>
-    circleApi.list().then(r => setCircles(r.data)).catch(() => {});
+    circleApi.list().then(r => {
+      setCircles(r.data);
+      // load payout status for each circle
+      r.data.forEach(c => {
+        circleApi.getPayoutStatus(c.id)
+          .then(ps => setPayoutStatus(prev => ({ ...prev, [c.id]: ps.data })))
+          .catch(() => {});
+      });
+    }).catch(() => {});
 
   useEffect(() => {
     loadCircles().finally(() => setLoading(false));
@@ -159,7 +169,8 @@ export default function Circles() {
 
   function contribute(circleId) {
     const circle = circles.find(c => c.id === circleId);
-    setPayModal({ circle, amount: circle?.contribution_amount || "" });
+    const ps = payoutStatus[circleId];
+    setPayModal({ circle: { ...circle, upi_qr_image: ps?.upi_qr_image || circle?.upi_qr_image }, amount: circle?.contribution_amount || "", receiverName: ps?.current_receiver?.name });
   }
 
   async function handlePayConfirm() {
@@ -177,6 +188,22 @@ export default function Circles() {
       setMsg(err.response?.data?.detail || "Contribution failed");
     } finally {
       setContributing(false);
+      setTimeout(() => setMsg(""), 4000);
+    }
+  }
+
+  async function handleConfirmReceived(circleId) {
+    setConfirming(true);
+    try {
+      const r = await circleApi.confirmReceived(circleId);
+      setMsg(`✅ ${r.data.message}`);
+      await loadCircles();
+      const ps = await circleApi.getPayoutStatus(circleId);
+      setPayoutStatus(prev => ({ ...prev, [circleId]: ps.data }));
+    } catch (err) {
+      setMsg(err.response?.data?.detail || "Confirmation failed");
+    } finally {
+      setConfirming(false);
       setTimeout(() => setMsg(""), 4000);
     }
   }
@@ -232,23 +259,67 @@ export default function Circles() {
                   <span style={styles.chip}>💰 ₹{c.pool_balance?.toLocaleString("en-IN")} pool</span>
                   <span style={styles.chip}>📅 ₹{c.contribution_amount}/cycle</span>
                 </div>
-                <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
-                  {contributing ? "Processing…" : "Pay Contribution"}
-                </button>
-                {c.upi_qr_image && <div style={{ fontSize: "11px", color: "#1D9E75", marginTop: "6px", textAlign: "center" }}>✅ UPI QR uploaded</div>}
-                <label style={{ ...styles.payBtn, background: "#F0FAF5", color: "#1D9E75", border: "1px solid #B8E0D0", marginTop: "6px", cursor: "pointer", textAlign: "center", display: "block" }}>
-                  📷 {c.upi_qr_image ? "Update QR" : "Upload UPI QR"}
-                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    try {
-                      await circleApi.uploadQr(c.id, file);
-                      setMsg("✅ QR uploaded! Members will see your real QR when paying.");
-                      await loadCircles();
-                    } catch { setMsg("Failed to upload QR"); }
-                    setTimeout(() => setMsg(""), 3000);
-                  }} />
-                </label>
+                {/* Role-based actions per circle */}
+                {(() => {
+                  const ps = payoutStatus[c.id];
+                  const isReceiver = ps?.current_receiver?.id === user?.id;
+                  const hasReceiver = !!ps?.current_receiver;
+
+                  if (isReceiver) {
+                    // This user is the selected payout receiver
+                    return (
+                      <>
+                        <div style={{ fontSize: "12px", color: "#1D9E75", fontWeight: "600", marginBottom: "6px" }}>🎯 You are this round's receiver!</div>
+                        <label style={{ ...styles.payBtn, background: "#F0FAF5", color: "#1D9E75", border: "1px solid #B8E0D0", cursor: "pointer", textAlign: "center", display: "block", marginBottom: "6px" }}>
+                          📷 {c.upi_qr_image ? "Update your QR" : "Upload your UPI QR"}
+                          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            try {
+                              await circleApi.uploadQr(c.id, file);
+                              setMsg("✅ QR uploaded! Members can now pay you.");
+                              await loadCircles();
+                            } catch { setMsg("Failed to upload QR"); }
+                            setTimeout(() => setMsg(""), 3000);
+                          }} />
+                        </label>
+                        <button
+                          style={{ ...styles.payBtn, background: confirming ? "#ccc" : "#1D9E75", color: "#fff", border: "none" }}
+                          onClick={e => { e.stopPropagation(); handleConfirmReceived(c.id); }}
+                          disabled={confirming}
+                        >
+                          {confirming ? "Confirming…" : "✅ Confirm Everyone Paid"}
+                        </button>
+                      </>
+                    );
+                  }
+
+                  if (hasReceiver) {
+                    // There's a receiver, this user needs to pay
+                    return (
+                      <>
+                        <div style={{ fontSize: "12px", color: "#6B7A8D", marginBottom: "6px" }}>
+                          💸 Pay to: <strong>{ps.current_receiver.name}</strong>
+                        </div>
+                        {c.upi_qr_image && (
+                          <div style={{ textAlign: "center", marginBottom: "6px" }}>
+                            <img src={c.upi_qr_image} alt="UPI QR" style={{ width: 100, height: 100, borderRadius: 8, border: "1px solid #E8EEF4" }} />
+                          </div>
+                        )}
+                        <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
+                          {contributing ? "Processing…" : "Pay Contribution"}
+                        </button>
+                      </>
+                    );
+                  }
+
+                  // No receiver assigned yet — show generic pay
+                  return (
+                    <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
+                      {contributing ? "Processing…" : "Pay Contribution"}
+                    </button>
+                  );
+                })()}
               </div>
             ))}
           </div>
@@ -322,6 +393,7 @@ export default function Circles() {
         <PaymentModal
           circle={payModal.circle}
           amount={payModal.amount}
+          receiverName={payModal.receiverName}
           onConfirm={handlePayConfirm}
           onClose={() => setPayModal(null)}
         />

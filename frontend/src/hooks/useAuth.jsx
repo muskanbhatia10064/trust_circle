@@ -13,7 +13,9 @@ export function AuthProvider({ children }) {
     const res = await authApi.login(phone, password)
     const token = res.data.access_token
     localStorage.setItem('token', token)
-    const userData = { phone }
+    // Fetch full user profile to get id
+    const { data: me } = await import('../services/api').then(m => m.default.get('/auth/me'))
+    const userData = { id: me.id, phone: me.phone_number, name: me.full_name }
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
   }

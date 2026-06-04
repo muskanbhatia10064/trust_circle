@@ -28,6 +28,29 @@ class ContributeRequest(BaseModel):
     amount: float
 
 
+def _circle_dict(circle):
+    return {
+        "id": circle.id,
+        "name": circle.name,
+        "code": circle.code,
+        "contribution_amount": float(circle.contribution_amount),
+        "cycle_days": circle.cycle_days,
+        "frequency": circle.frequency.value if hasattr(circle.frequency, "value") else circle.frequency,
+        "max_members": circle.max_members,
+        "current_member_count": circle.current_member_count,
+        "current_round": circle.current_round,
+        "pool_balance": circle.pool_balance,
+        "reinsurance_balance": circle.reinsurance_balance,
+        "status": circle.status.value if hasattr(circle.status, "value") else circle.status,
+        "created_by": circle.created_by,
+        "upi_id": circle.upi_id,
+        "upi_qr_image": circle.upi_qr_image,
+        "current_payout_receiver_id": circle.current_payout_receiver_id,
+        "payout_receiver_confirmed": circle.payout_receiver_confirmed,
+        "created_at": circle.created_at.isoformat(),
+    }
+
+
 def _gen_code():
     return "TC-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -51,7 +74,7 @@ def create_circle(body: CreateCircleRequest, current_user: User = Depends(get_cu
     db.add(member)
     db.commit()
     db.refresh(circle)
-    return circle
+    return _circle_dict(circle)
 
 
 @router.get("/")
@@ -59,7 +82,7 @@ def list_circles(current_user: User = Depends(get_current_user), db: Session = D
     memberships = db.query(Membership).filter(Membership.user_id == current_user.id).all()
     circle_ids = [m.circle_id for m in memberships]
     circles = db.query(Circle).filter(Circle.id.in_(circle_ids)).all()
-    return circles
+    return [_circle_dict(c) for c in circles]
 
 
 @router.post("/{circle_id}/join")
@@ -140,7 +163,7 @@ def get_circle(circle_id: int, db: Session = Depends(get_db)):
     circle = db.query(Circle).filter(Circle.id == circle_id).first()
     if not circle:
         raise HTTPException(status_code=404, detail="Circle not found")
-    return circle
+    return _circle_dict(circle)
 
 
 @router.post("/{circle_id}/upload-qr")
@@ -153,12 +176,14 @@ async def upload_qr(
     circle = db.query(Circle).filter(Circle.id == circle_id).first()
     if not circle:
         raise HTTPException(status_code=404, detail="Circle not found")
-    if circle.created_by != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the circle creator can upload QR")
+    allowed = circle.current_payout_receiver_id == current_user.id or \
+              (circle.current_payout_receiver_id is None and circle.created_by == current_user.id)
+    if not allowed:
+        raise HTTPException(status_code=403, detail="Only the current payout receiver can upload QR")
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     contents = await file.read()
-    if len(contents) > 2 * 1024 * 1024:  # 2MB limit
+    if len(contents) > 2 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Image too large. Max 2MB.")
     b64 = base64.b64encode(contents).decode("utf-8")
     circle.upi_qr_image = f"data:{file.content_type};base64,{b64}"
@@ -183,6 +208,100 @@ def update_upi_id(
     return {"message": "UPI ID updated", "upi_id": circle.upi_id}
 
 
+@router.get("/{circle_id}/payout-status")
+def get_payout_status(circle_id: int, db: Session = Depends(get_db)):
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    receiver = None
+    if circle.current_payout_receiver_id:
+        u = db.query(User).filter(User.id == circle.current_payout_receiver_id).first()
+        if u:
+            receiver = {"id": u.id, "name": u.full_name or u.name, "phone": u.phone_number}
+    return {
+        "current_receiver": receiver,
+        "upi_qr_image": circle.upi_qr_image,
+        "upi_id": circle.upi_id,
+        "confirmed": circle.payout_receiver_confirmed,
+        "round": circle.current_round,
+    }
+
+
+@router.post("/{circle_id}/assign-receiver")
+def assign_receiver(
+    circle_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only creator can assign receiver")
+    pending = db.query(Membership).filter(
+        Membership.circle_id == circle_id,
+        Membership.received_payout == False
+    ).all()
+    if not pending:
+        raise HTTPException(status_code=400, detail="All members have received payout. Circle complete!")
+    chosen = random.choice(pending)
+    circle.current_payout_receiver_id = chosen.user_id
+    circle.upi_qr_image = None
+    circle.upi_id = None
+    circle.payout_receiver_confirmed = False
+    db.commit()
+    receiver = db.query(User).filter(User.id == chosen.user_id).first()
+    return {
+        "message": f"{receiver.full_name or receiver.name} selected as this month's receiver",
+        "receiver_id": chosen.user_id,
+        "receiver_name": receiver.full_name or receiver.name,
+    }
+
+
+@router.post("/{circle_id}/confirm-received")
+def confirm_received(
+    circle_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.current_payout_receiver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the current receiver can confirm")
+    other_members = db.query(Membership).filter(
+        Membership.circle_id == circle_id,
+        Membership.user_id != current_user.id,
+        Membership.status == "active"
+    ).all()
+    non_payers = [
+        m.user_id for m in other_members
+        if not db.query(Transaction).filter(
+            Transaction.circle_id == circle_id,
+            Transaction.user_id == m.user_id,
+            Transaction.tx_type == "contribution"
+        ).first()
+    ]
+    if non_payers:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{len(non_payers)} member(s) haven't paid yet. Cannot confirm until all members pay."
+        )
+    membership = db.query(Membership).filter(
+        Membership.circle_id == circle_id,
+        Membership.user_id == current_user.id
+    ).first()
+    if membership:
+        membership.received_payout = True
+    circle.upi_qr_image = None
+    circle.upi_id = None
+    circle.payout_receiver_confirmed = True
+    circle.current_payout_receiver_id = None
+    circle.current_round += 1
+    db.commit()
+    return {"message": "Payout confirmed! QR removed. Next round ready.", "round": circle.current_round}
+
+
 @router.get("/{circle_id}/members")
 def get_members(circle_id: int, db: Session = Depends(get_db)):
     members = db.query(Membership).filter(Membership.circle_id == circle_id).all()
@@ -198,12 +317,12 @@ def get_members(circle_id: int, db: Session = Depends(get_db)):
         )
         result.append({
             "user_id": m.user_id,
-            "name": user.name if user else "Unknown",
+            "name": user.full_name or user.name if user else "Unknown",
             "district": user.district if user else None,
             "state": user.state if user else None,
             "trust_score": score_record.score if score_record else None,
             "payment_status": "paid" if last_tx else "pending",
-            "last_paid_amount": last_tx.amount if last_tx else None,
-            "last_paid_at": last_tx.created_at if last_tx else None,
+            "last_paid_amount": float(last_tx.amount) if last_tx else None,
+            "last_paid_at": last_tx.created_at.isoformat() if last_tx else None,
         })
     return result

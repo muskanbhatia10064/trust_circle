@@ -164,8 +164,10 @@ class Circle(Base):
     reinsurance_balance: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0", nullable=False)
     cycle_days: Mapped[int] = mapped_column(Integer, default=30, server_default="30", nullable=False)
     facilitator_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    upi_qr_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # base64 encoded QR image
+    upi_qr_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     upi_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    current_payout_receiver_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    payout_receiver_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
     start_date: Mapped[Optional[datetime]] = mapped_column(nullable=True)
     end_date: Mapped[Optional[datetime]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)

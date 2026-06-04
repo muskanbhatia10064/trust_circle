@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export default function PaymentModal({ circle, amount, onConfirm, onClose }) {
+export default function PaymentModal({ circle, amount, receiverName, onConfirm, onClose }) {
   const [step, setStep] = useState("upi");
   const [upiId, setUpiId] = useState("");
 
@@ -48,7 +48,7 @@ export default function PaymentModal({ circle, amount, onConfirm, onClose }) {
         {/* Amount banner */}
         <div style={styles.amountBanner}>
           <div style={styles.amountLabel}>Payment to</div>
-          <div style={styles.circleName}>{circle?.name}</div>
+          <div style={styles.circleName}>{circle?.name}{receiverName ? ` → ${receiverName}` : ""}</div>
           <div style={styles.amount}>₹{parseFloat(amount).toLocaleString("en-IN")}</div>
           <div style={styles.amountNote}>Monthly contribution · 0.5% reinsurance buffer included</div>
         </div>

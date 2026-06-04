@@ -28,6 +28,9 @@ export const circleApi = {
   getMembers: (id) => api.get(`/circles/${id}/members`),
   uploadQr: (id, file) => { const fd = new FormData(); fd.append('file', file); return api.post(`/circles/${id}/upload-qr`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }); },
   updateUpiId: (id, upi_id) => api.post(`/circles/${id}/upi-id`, { upi_id }),
+  getPayoutStatus: (id) => api.get(`/circles/${id}/payout-status`),
+  assignReceiver: (id) => api.post(`/circles/${id}/assign-receiver`),
+  confirmReceived: (id) => api.post(`/circles/${id}/confirm-received`),
 }
 
 export const consentApi = {
