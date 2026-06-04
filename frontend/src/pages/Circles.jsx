@@ -368,13 +368,38 @@ export default function Circles() {
                     );
                   }
 
-                  // No receiver assigned yet — show generic pay
+                    // No receiver assigned yet — show generic pay
                   return (
                     <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
                       {contributing ? "Processing…" : "Pay Contribution"}
                     </button>
                   );
                 })()}
+
+                {/* Admin quick actions — always visible on card for circle creator */}
+                {c.created_by === user?.id && (
+                  <div style={{ borderTop: "1px solid #F0F4F8", marginTop: "10px", paddingTop: "10px", display: "flex", gap: "6px", flexWrap: "wrap" }} onClick={e => e.stopPropagation()}>
+                    <button style={{ ...styles.adminBtn, fontSize: "11px", padding: "5px 10px" }}
+                      onClick={() => { setSelectedCircle(c); setTimeout(() => setShowInvite(true), 50); }}>
+                      ➕ Add Member
+                    </button>
+                    <button style={{ ...styles.adminBtn, fontSize: "11px", padding: "5px 10px" }}
+                      onClick={async () => {
+                        try {
+                          const r = await circleApi.getInviteLink(c.id);
+                          navigator.clipboard?.writeText(r.data.link).catch(() => {});
+                          setMsg("🔗 Copied! Code: " + r.data.code);
+                        } catch { setMsg("Failed to get link"); }
+                        setTimeout(() => setMsg(""), 4000);
+                      }}>
+                      🔗 Invite Link
+                    </button>
+                    <button style={{ ...styles.adminBtn, fontSize: "11px", padding: "5px 10px", background: "#FFF0F0", color: "#E05252", border: "1.5px solid #F8C8C8" }}
+                      onClick={() => { setSelectedCircle(c); setTimeout(() => setShowTickets(true), 50); }}>
+                      🚨 Tickets
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
