@@ -146,13 +146,15 @@ export default function Circles() {
   const loadCircles = () =>
     circleApi.list().then(r => {
       setCircles(r.data);
-      // load payout status for each circle
       r.data.forEach(c => {
         circleApi.getPayoutStatus(c.id)
           .then(ps => setPayoutStatus(prev => ({ ...prev, [c.id]: ps.data })))
           .catch(() => {});
       });
-    }).catch(() => {});
+    }).catch((err) => {
+      const detail = err.response?.data?.detail;
+      if (detail) setMsg(typeof detail === 'string' ? detail : JSON.stringify(detail));
+    });
 
   useEffect(() => {
     loadCircles().finally(() => setLoading(false));

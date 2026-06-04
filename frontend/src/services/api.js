@@ -8,6 +8,19 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Auto-logout on any 401 so stale tokens don't lock users out
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export const authApi = {
   register: (data) => api.post('/auth/register', data),
   login: (phone, password) => api.post('/auth/login', new URLSearchParams({ username: phone, password })),
