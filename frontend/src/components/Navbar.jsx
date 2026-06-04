@@ -17,6 +17,7 @@ export default function Navbar() {
           <Link to="/trust-score">Trust Score</Link>
           <Link to="/consent">Consent</Link>
           <Link to="/facilitator">Facilitator</Link>
+          <Link to="/whatsapp-bot">WhatsApp Bot</Link>
 
           <button
             onClick={logout}

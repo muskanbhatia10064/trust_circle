@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_user
-from app.models import User, Circle, Membership, Transaction
+from app.models import User, Circle, Membership, MembershipStatus, Transaction
 from app.services import apply_reinsurance
 from app.services.trust_score import compute_trust_score, save_trust_score, get_latest_trust_score
 
@@ -79,7 +79,7 @@ def create_circle(body: CreateCircleRequest, current_user: User = Depends(get_cu
     )
     db.add(circle)
     db.flush()
-    member = Membership(circle_id=circle.id, user_id=current_user.id)
+    member = Membership(circle_id=circle.id, user_id=current_user.id, status=MembershipStatus.ACTIVE)
     db.add(member)
     db.commit()
     db.refresh(circle)
@@ -104,7 +104,7 @@ def join_circle(circle_id: int, current_user: User = Depends(get_current_user), 
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Already a member")
-    member = Membership(circle_id=circle_id, user_id=current_user.id)
+    member = Membership(circle_id=circle_id, user_id=current_user.id, status=MembershipStatus.ACTIVE)
     db.add(member)
     db.commit()
     return {"status": "joined", "circle_id": circle_id}
@@ -332,7 +332,7 @@ def invite_member(
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="User is already in this circle")
-    db.add(Membership(circle_id=circle_id, user_id=target.id))
+    db.add(Membership(circle_id=circle_id, user_id=target.id, status=MembershipStatus.ACTIVE))
     db.commit()
     return {"message": f"{target.full_name or target.name} added to circle", "user_id": target.id}
 
