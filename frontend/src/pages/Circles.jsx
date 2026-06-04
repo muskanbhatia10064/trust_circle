@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { circleApi } from "../services/api";
+import PaymentModal from "../components/PaymentModal";
 
 function getScoreColor(score) {
   if (!score) return "#A0ADB8";
@@ -120,6 +121,7 @@ export default function Circles() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: "", contribution_amount: "", cycle_days: 30 });
   const [contributing, setContributing] = useState(false);
+  const [payModal, setPayModal] = useState(null); // { circle, amount }
   const [msg, setMsg] = useState("");
 
   const loadCircles = () =>
@@ -153,16 +155,20 @@ export default function Circles() {
     setTimeout(() => setMsg(""), 3000);
   }
 
-  async function contribute(circleId) {
-    const amount = prompt("Enter contribution amount (₹):");
-    if (!amount || isNaN(amount)) return;
+  function contribute(circleId) {
+    const circle = circles.find(c => c.id === circleId);
+    setPayModal({ circle, amount: circle?.contribution_amount || "" });
+  }
+
+  async function handlePayConfirm() {
+    if (!payModal) return;
     setContributing(true);
     try {
-      const r = await circleApi.contribute(circleId, parseFloat(amount));
-      setMsg(`✅ Contributed! Pool: ₹${r.data.pool_balance} | Score: ${r.data.trust_score?.updated}`);
+      const r = await circleApi.contribute(payModal.circle.id, parseFloat(payModal.amount));
+      setMsg(`✅ Pool: ₹${r.data.pool_balance} | Trust Score: ${r.data.trust_score?.updated}`);
       await loadCircles();
-      if (selectedCircle?.id === circleId) {
-        const mr = await circleApi.getMembers(circleId);
+      if (selectedCircle?.id === payModal.circle.id) {
+        const mr = await circleApi.getMembers(payModal.circle.id);
         setMembers(mr.data);
       }
     } catch (err) {
@@ -296,6 +302,14 @@ export default function Circles() {
           </>
         )}
       </div>
+      {payModal && (
+        <PaymentModal
+          circle={payModal.circle}
+          amount={payModal.amount}
+          onConfirm={handlePayConfirm}
+          onClose={() => setPayModal(null)}
+        />
+      )}
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap');`}</style>
     </div>
   );
