@@ -15,8 +15,7 @@ def compute_trust_score(user_id: str, db: Session) -> float:
 
     Result clamped to [0, 1000]
     """
-    from app.models import CircleMember, Circle
-    from sqlalchemy import func
+    from app.models import Membership
 
     contributions = (
         db.query(Transaction)
@@ -28,9 +27,9 @@ def compute_trust_score(user_id: str, db: Session) -> float:
     on_time = len([t for t in contributions if t.created_at and t.created_at >= recent_cutoff])
     missed  = max(0, len(contributions) // 3)   # heuristic: 1 miss per 3 payments
 
-    memberships    = db.query(CircleMember).filter(CircleMember.user_id == user_id).count()
-    completed      = db.query(CircleMember).filter(
-        CircleMember.user_id == user_id, CircleMember.received_payout == True
+    memberships    = db.query(Membership).filter(Membership.user_id == user_id).count()
+    completed      = db.query(Membership).filter(
+        Membership.user_id == user_id, Membership.received_payout == True
     ).count()
 
     score = (
