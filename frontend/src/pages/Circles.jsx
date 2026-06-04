@@ -141,12 +141,14 @@ export default function Circles() {
   async function createCircle(e) {
     e.preventDefault();
     try {
-      await circleApi.create({ ...form, contribution_amount: parseFloat(form.contribution_amount) });
+      const payload = { name: form.name.trim(), contribution_amount: parseFloat(form.contribution_amount), cycle_days: parseInt(form.cycle_days) || 30 };
+      await circleApi.create(payload);
       setMsg("Circle created!"); setShowCreate(false);
       setForm({ name: "", contribution_amount: "", cycle_days: 30 });
       await loadCircles();
     } catch (err) {
-      setMsg(err.response?.data?.detail || "Failed to create circle");
+      const detail = err.response?.data?.detail;
+      setMsg(typeof detail === 'string' ? detail : JSON.stringify(detail) || "Failed to create circle");
     }
     setTimeout(() => setMsg(""), 3000);
   }
