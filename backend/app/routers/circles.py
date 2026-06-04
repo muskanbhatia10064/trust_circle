@@ -1,6 +1,7 @@
 import random
 import string
-from fastapi import APIRouter, Depends, HTTPException
+import base64
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from app.database import get_db
@@ -16,6 +17,11 @@ class CreateCircleRequest(BaseModel):
     name: str
     contribution_amount: float
     cycle_days: int = 30
+    upi_id: str = ""
+
+
+class UpiIdRequest(BaseModel):
+    upi_id: str
 
 
 class ContributeRequest(BaseModel):
@@ -37,6 +43,7 @@ def create_circle(body: CreateCircleRequest, current_user: User = Depends(get_cu
         max_members=20,
         created_by=current_user.id,
         facilitator_id=current_user.id,
+        upi_id=body.upi_id or None,
     )
     db.add(circle)
     db.flush()
@@ -134,6 +141,46 @@ def get_circle(circle_id: int, db: Session = Depends(get_db)):
     if not circle:
         raise HTTPException(status_code=404, detail="Circle not found")
     return circle
+
+
+@router.post("/{circle_id}/upload-qr")
+async def upload_qr(
+    circle_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle creator can upload QR")
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    contents = await file.read()
+    if len(contents) > 2 * 1024 * 1024:  # 2MB limit
+        raise HTTPException(status_code=400, detail="Image too large. Max 2MB.")
+    b64 = base64.b64encode(contents).decode("utf-8")
+    circle.upi_qr_image = f"data:{file.content_type};base64,{b64}"
+    db.commit()
+    return {"message": "QR uploaded successfully"}
+
+
+@router.post("/{circle_id}/upi-id")
+def update_upi_id(
+    circle_id: int,
+    body: UpiIdRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    circle = db.query(Circle).filter(Circle.id == circle_id).first()
+    if not circle:
+        raise HTTPException(status_code=404, detail="Circle not found")
+    if circle.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle creator can update UPI ID")
+    circle.upi_id = body.upi_id
+    db.commit()
+    return {"message": "UPI ID updated", "upi_id": circle.upi_id}
 
 
 @router.get("/{circle_id}/members")

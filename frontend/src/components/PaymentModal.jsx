@@ -59,7 +59,14 @@ export default function PaymentModal({ circle, amount, onConfirm, onClose }) {
         {step === "upi" && (
           <div style={styles.body}>
             <div style={styles.qrSection}>
-              <div style={styles.qrBox}>
+              {circle?.upi_qr_image ? (
+                <>
+                  <img src={circle.upi_qr_image} alt="UPI QR" style={{ width: 160, height: 160, borderRadius: 12, border: '1px solid #E8EEF4', objectFit: 'contain', background: '#fff', padding: 8 }} />
+                  <div style={styles.qrLabel}>Scan with any UPI app to pay directly</div>
+                </>
+              ) : (
+                <>
+                  <div style={styles.qrBox}>
                 {/* SVG QR code pattern */}
                 <svg width="140" height="140" viewBox="0 0 140 140">
                   <rect width="140" height="140" fill="white" />
@@ -111,6 +118,8 @@ export default function PaymentModal({ circle, amount, onConfirm, onClose }) {
                   <div key={app} style={styles.upiApp}>{app}</div>
                 ))}
               </div>
+            </div>
+              )}
             </div>
 
             <div style={styles.dividerRow}>

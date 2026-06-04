@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { circleApi } from "../services/api";
 import PaymentModal from "../components/PaymentModal";
+import { useAuth } from "../hooks/useAuth";
 
 function getScoreColor(score) {
   if (!score) return "#A0ADB8";
@@ -112,6 +113,7 @@ function MemberCard({ member }) {
 }
 
 export default function Circles() {
+  const { user } = useAuth();
   const [circles, setCircles] = useState([]);
   const [selectedCircle, setSelectedCircle] = useState(null);
   const [members, setMembers] = useState([]);
@@ -233,6 +235,20 @@ export default function Circles() {
                 <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
                   {contributing ? "Processing…" : "Pay Contribution"}
                 </button>
+                {c.upi_qr_image && <div style={{ fontSize: "11px", color: "#1D9E75", marginTop: "6px", textAlign: "center" }}>✅ UPI QR uploaded</div>}
+                <label style={{ ...styles.payBtn, background: "#F0FAF5", color: "#1D9E75", border: "1px solid #B8E0D0", marginTop: "6px", cursor: "pointer", textAlign: "center", display: "block" }}>
+                  📷 {c.upi_qr_image ? "Update QR" : "Upload UPI QR"}
+                  <input type="file" accept="image/*" style={{ display: "none" }} onChange={async e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    try {
+                      await circleApi.uploadQr(c.id, file);
+                      setMsg("✅ QR uploaded! Members will see your real QR when paying.");
+                      await loadCircles();
+                    } catch { setMsg("Failed to upload QR"); }
+                    setTimeout(() => setMsg(""), 3000);
+                  }} />
+                </label>
               </div>
             ))}
           </div>
