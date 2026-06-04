@@ -1,25 +1,15 @@
 // FILE: frontend/src/pages/Dashboard.jsx
 
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import MapView from "../components/MapView";
-
-const CIRCLES = [
-  { id: 1, name: "Mahila Bachat Mandal", members: 12, pool: "₹24,000", nextPayout: "15 Jun", color: "#1D9E75" },
-  { id: 2, name: "Kisan Sahayata Group", members: 8, pool: "₹16,000", nextPayout: "22 Jun", color: "#0E7A5A" },
-  { id: 3, name: "Varanasi Vyapar Circle", members: 15, pool: "₹45,000", nextPayout: "30 Jun", color: "#27AE87" },
-];
-
-const IMPACT_TARGETS = [
-  { label: "Credit Identities Created", value: 47, prefix: "" },
-  { label: "Total Secured", value: 340000, prefix: "₹" },
-  { label: "Active Circles", value: 12, prefix: "" },
-];
+import { adminApi, circleApi } from "../services/api";
 
 function useCountUp(target, duration = 2000, start = false) {
   const [count, setCount] = useState(0);
   const raf = useRef(null);
   useEffect(() => {
-    if (!start) return;
+    if (!start || target === 0) return;
     let startTime = null;
     const step = (timestamp) => {
       if (!startTime) startTime = timestamp;
@@ -53,22 +43,23 @@ function ImpactCard({ item, animate }) {
 
 function CircleCard({ circle }) {
   const [hovered, setHovered] = useState(false);
+  const colors = ["#1D9E75", "#0E7A5A", "#27AE87"];
+  const color = colors[circle.id % colors.length] || "#1D9E75";
   return (
     <div
       style={{ ...styles.circleCard, boxShadow: hovered ? "0 6px 24px rgba(29,158,117,0.15)" : styles.circleCard.boxShadow }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div style={{ ...styles.circleAccent, background: circle.color }} />
+      <div style={{ ...styles.circleAccent, background: color }} />
       <div style={styles.circleContent}>
         <div style={styles.circleName}>{circle.name}</div>
         <div style={styles.circleStats}>
-          <span style={styles.circleStat}>👥 {circle.members} members</span>
-          <span style={styles.circleStat}>💰 {circle.pool} pool</span>
-          <span style={styles.circleStat}>📅 Payout {circle.nextPayout}</span>
+          <span style={styles.circleStat}>💰 ₹{circle.pool_balance?.toLocaleString("en-IN") || 0} pool</span>
+          <span style={styles.circleStat}>📅 ₹{circle.contribution_amount}/cycle</span>
         </div>
         <div style={styles.circleStatusBadge}>
-          <span style={styles.circleStatusDot} /> Active
+          <span style={styles.circleStatusDot} /> {circle.status || "Active"}
         </div>
       </div>
     </div>
@@ -76,11 +67,27 @@ function CircleCard({ circle }) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [animateImpact, setAnimateImpact] = useState(false);
+  const [stats, setStats] = useState({ credit_identities_created: 0, total_pooled: 0, active_circles: 0 });
+  const [circles, setCircles] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const timer = setTimeout(() => setAnimateImpact(true), 400);
-    return () => clearTimeout(timer);
+    Promise.all([
+      adminApi.getStats().then(r => setStats(r.data)).catch(() => {}),
+      circleApi.list().then(r => setCircles(r.data)).catch(() => {}),
+    ]).finally(() => {
+      setLoading(false);
+      setTimeout(() => setAnimateImpact(true), 400);
+    });
   }, []);
+
+  const impactItems = [
+    { label: "Credit Identities Created", value: stats.credit_identities_created, prefix: "" },
+    { label: "Total Pooled", value: Math.round(stats.total_pooled), prefix: "₹" },
+    { label: "Active Circles", value: stats.active_circles, prefix: "" },
+  ];
 
   return (
     <div style={styles.page}>
@@ -89,17 +96,17 @@ export default function Dashboard() {
         <div style={styles.heroContent}>
           <div style={styles.heroBadge}>🇮🇳 Community Finance Platform</div>
           <h1 style={styles.heroTitle}>Build Trust,<br /><span style={styles.heroAccent}>Grow Together</span></h1>
-          <p style={styles.heroSub}>Join 47+ members across Uttar Pradesh and Bihar building verified credit through community savings circles.</p>
+          <p style={styles.heroSub}>Building verified credit through community savings circles across India.</p>
           <div style={styles.heroActions}>
-            <button style={styles.btnPrimary}>Join a Circle</button>
-            <button style={styles.btnOutline}>View My Score</button>
+            <button style={styles.btnPrimary} onClick={() => navigate("/circles")}>Join a Circle</button>
+            <button style={styles.btnOutline} onClick={() => navigate("/trust-score")}>View My Score</button>
           </div>
         </div>
         <div style={styles.heroVisual}>
           <div style={styles.heroRing}>
             <div style={styles.heroRingInner}>
-              <span style={styles.heroScore}>742</span>
-              <span style={styles.heroScoreLabel}>Trust Score</span>
+              <span style={styles.heroScore}>{stats.credit_identities_created || "—"}</span>
+              <span style={styles.heroScoreLabel}>Members</span>
             </div>
           </div>
           <div style={styles.heroPulse1} />
@@ -110,10 +117,10 @@ export default function Dashboard() {
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitle}>Our Impact</h2>
-          <p style={styles.sectionSub}>Real numbers, real lives changed</p>
+          <p style={styles.sectionSub}>Live numbers from the platform</p>
         </div>
         <div style={styles.impactGrid}>
-          {IMPACT_TARGETS.map((item) => (
+          {impactItems.map((item) => (
             <ImpactCard key={item.label} item={item} animate={animateImpact} />
           ))}
         </div>
@@ -121,12 +128,21 @@ export default function Dashboard() {
 
       <section style={styles.section}>
         <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Active Circles</h2>
+          <h2 style={styles.sectionTitle}>My Circles</h2>
           <a href="/circles" style={styles.viewAll}>View all →</a>
         </div>
-        <div style={styles.circlesGrid}>
-          {CIRCLES.map((c) => <CircleCard key={c.id} circle={c} />)}
-        </div>
+        {loading ? (
+          <div style={styles.loadingBox}>Loading your circles…</div>
+        ) : circles.length === 0 ? (
+          <div style={styles.emptyBox}>
+            <p>You're not in any circle yet.</p>
+            <button style={{ ...styles.btnPrimary, marginTop: "12px" }} onClick={() => navigate("/circles")}>Create or Join a Circle</button>
+          </div>
+        ) : (
+          <div style={styles.circlesGrid}>
+            {circles.map((c) => <CircleCard key={c.id} circle={c} />)}
+          </div>
+        )}
       </section>
 
       <section style={styles.section}>
@@ -135,29 +151,6 @@ export default function Dashboard() {
           <p style={styles.sectionSub}>Members across North India</p>
         </div>
         <div style={styles.mapWrapper}><MapView /></div>
-      </section>
-
-      <section style={styles.section}>
-        <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Recent Activity</h2>
-        </div>
-        <div style={styles.activityList}>
-          {[
-            { name: "Priya Sharma", action: "contributed ₹2,000", circle: "Mahila Bachat Mandal", time: "2h ago", avatar: "PS" },
-            { name: "Amit Yadav", action: "contributed ₹1,800", circle: "Kisan Sahayata Group", time: "5h ago", avatar: "AY" },
-            { name: "Rahul Verma", action: "received payout ₹12,000", circle: "Varanasi Vyapar Circle", time: "1d ago", avatar: "RV" },
-          ].map((a, i) => (
-            <div key={i} style={styles.activityItem}>
-              <div style={styles.activityAvatar}>{a.avatar}</div>
-              <div style={styles.activityText}>
-                <span style={styles.activityName}>{a.name}</span>
-                <span style={styles.activityAction}> {a.action} </span>
-                <span style={styles.activityCircle}>in {a.circle}</span>
-              </div>
-              <div style={styles.activityTime}>{a.time}</div>
-            </div>
-          ))}
-        </div>
       </section>
 
       <style>{`
@@ -208,13 +201,7 @@ const styles = {
   circleStat: { fontSize: "12px", color: "#6B7A8D", background: "#F7F9FC", borderRadius: "6px", padding: "4px 10px" },
   circleStatusBadge: { display: "inline-flex", alignItems: "center", gap: "6px", background: "#E8F5F1", color: "#1D9E75", borderRadius: "100px", padding: "4px 12px", fontSize: "11px", fontWeight: "600" },
   circleStatusDot: { width: "6px", height: "6px", borderRadius: "50%", background: "#1D9E75", animation: "blink 1.5s ease-in-out infinite" },
-  mapWrapper: { background: "#FFFFFF", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "8px" },
-  activityList: { background: "#FFFFFF", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "48px" },
-  activityItem: { display: "flex", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #F0F4F8", gap: "14px" },
-  activityAvatar: { width: "38px", height: "38px", borderRadius: "50%", background: "linear-gradient(135deg, #1D9E75, #0E7A5A)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: "700", flexShrink: 0 },
-  activityText: { flex: 1, fontSize: "13px", lineHeight: 1.5, color: "#4A5568" },
-  activityName: { fontWeight: "600", color: "#1A2332" },
-  activityAction: { color: "#4A5568" },
-  activityCircle: { color: "#1D9E75", fontWeight: "500" },
-  activityTime: { fontSize: "12px", color: "#A0ADB8", flexShrink: 0 },
+  mapWrapper: { background: "#FFFFFF", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "48px" },
+  loadingBox: { background: "#fff", borderRadius: "12px", padding: "40px", textAlign: "center", color: "#8899AA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" },
+  emptyBox: { background: "#fff", borderRadius: "12px", padding: "40px", textAlign: "center", color: "#6B7A8D", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" },
 };

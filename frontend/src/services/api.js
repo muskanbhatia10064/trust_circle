@@ -25,6 +25,7 @@ export const circleApi = {
   get: (id) => api.get(`/circles/${id}`),
   join: (id) => api.post(`/circles/${id}/join`),
   contribute: (id, amount) => api.post(`/circles/${id}/contribute`, { amount }),
+  getMembers: (id) => api.get(`/circles/${id}/members`),
 }
 
 export const consentApi = {
