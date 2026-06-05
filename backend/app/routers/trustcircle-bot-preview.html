@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>TrustCircle Bot Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#F7F9FC;font-family:'Sora',sans-serif;padding:32px 24px;min-height:100vh;}
+.page-title{font-size:22px;font-weight:700;color:#1A2332;margin-bottom:4px;}
+.page-sub{font-size:13px;color:#6B7A8D;margin-bottom:28px;}
+.layout{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
+.sidebar{flex:0 0 240px;min-width:200px;}
+.sidebar-label{font-size:11px;font-weight:600;color:#6B7A8D;letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;}
+.group-card{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:12px;cursor:pointer;margin-bottom:8px;border:1px solid #E2E8F0;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.06);transition:all .15s;}
+.group-card.active{border-color:#1D9E75;background:#1D9E7510;box-shadow:none;}
+.group-name{font-size:13px;font-weight:600;color:#1A2332;}
+.group-card.active .group-name{color:#1D9E75;}
+.group-meta{font-size:11px;color:#6B7A8D;margin-top:3px;}
+.dot{width:8px;height:8px;border-radius:50%;background:#1D9E75;flex-shrink:0;}
+.chat-wrap{flex:1 1 320px;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06);border:1px solid #E2E8F0;overflow:hidden;background:#fff;}
+.wa-header{background:#128C7E;padding:12px 16px;display:flex;align-items:center;gap:10px;}
+.wa-avatar{width:36px;height:36px;border-radius:50%;background:#25D36630;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.wa-title{font-size:14px;font-weight:600;color:#fff;}
+.wa-sub{font-size:11px;color:rgba(255,255,255,.6);}
+.lang-wrap{display:flex;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.2);margin-left:auto;flex-shrink:0;}
+.lang-btn{padding:4px 10px;background:transparent;border:none;color:rgba(255,255,255,.5);font-size:11px;cursor:pointer;font-family:'Sora',sans-serif;}
+.lang-btn.active{background:rgba(255,255,255,.2);color:#fff;}
+.messages{height:340px;overflow-y:auto;padding:12px 10px;background:#0a1612;display:flex;flex-direction:column;gap:8px;}
+.bubble{max-width:80%;padding:8px 12px;}
+.bubble.bot{border-radius:12px 12px 12px 2px;background:#1a2a20;border:1px solid #2a3f2e;align-self:flex-start;}
+.bubble.user{border-radius:12px 12px 2px 12px;background:#128C7E;border:1px solid #25D36650;align-self:flex-end;}
+.bubble-text{font-size:12px;color:#E8F0EA;line-height:1.7;white-space:pre-wrap;word-break:break-word;}
+.bubble-ts{font-size:10px;color:#6A8070;margin-top:4px;text-align:right;}
+.input-row{padding:10px 12px;background:#fff;border-top:1px solid #E2E8F0;display:flex;gap:8px;}
+.chat-input{flex:1;padding:10px 14px;border-radius:8px;background:#F7F9FC;border:1px solid #E2E8F0;color:#1A2332;font-size:13px;font-family:'Sora',sans-serif;outline:none;}
+.chat-input:focus{border-color:#1D9E75;}
+.send-btn{padding:10px 18px;border-radius:8px;border:none;font-weight:700;font-size:14px;cursor:pointer;font-family:'Sora',sans-serif;transition:all .15s;background:#E2E8F0;color:#8899AA;}
+.send-btn.active{background:#25D366;color:#fff;}
+.chips-row{padding:8px 12px 12px;background:#F7F9FC;border-top:1px solid #E2E8F0;display:flex;gap:6px;flex-wrap:wrap;align-items:center;}
+.chip{padding:3px 10px;border-radius:6px;background:#25D36615;border:1px solid #25D36630;color:#0E7A5A;font-size:11px;cursor:pointer;user-select:none;}
+.chip:hover{background:#25D36625;}
+.chip-hint{font-size:11px;color:#8899AA;}
+.cmd-table{margin-top:24px;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;box-shadow:0 2px 12px rgba(0,0,0,.06);}
+.cmd-head{padding:12px 16px;background:#fff;border-bottom:1px solid #E2E8F0;display:flex;justify-content:space-between;align-items:center;}
+.cmd-title{font-size:14px;font-weight:600;color:#1A2332;}
+.cmd-pill{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;color:#1D9E75;background:#1D9E7512;border:1px solid #1D9E7530;}
+.cmd-row{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid #E2E8F0;}
+.cmd-row:nth-child(odd){background:#fff;}
+.cmd-row:nth-child(even){background:#F7F9FC;}
+.cmd-code{font-size:11px;color:#0E7A5A;font-family:monospace;background:#25D36615;padding:2px 8px;border-radius:4px;white-space:nowrap;font-weight:600;flex-shrink:0;}
+.cmd-desc{font-size:13px;color:#6B7A8D;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;gap:10px;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.06);text-align:center;}
+.empty-icon{font-size:32px;}
+.empty-title{font-size:15px;font-weight:600;color:#1A2332;}
+.empty-sub{font-size:13px;color:#6B7A8D;line-height:1.6;}
+.empty-sub a{color:#1D9E75;text-decoration:none;}
+@keyframes tc-pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:#25D366;display:inline-block;}
+
+/* Add circle form */
+.add-form{margin-top:16px;background:#fff;border-radius:12px;border:1px solid #E2E8F0;box-shadow:0 2px 12px rgba(0,0,0,.06);padding:16px;}
+.add-form-title{font-size:13px;font-weight:600;color:#1A2332;margin-bottom:12px;}
+.form-row{display:flex;gap:8px;flex-wrap:wrap;}
+.form-input{flex:1;min-width:120px;padding:9px 12px;border-radius:8px;border:1px solid #E2E8F0;background:#F7F9FC;font-size:12px;font-family:'Sora',sans-serif;color:#1A2332;outline:none;}
+.form-input:focus{border-color:#1D9E75;}
+.add-btn{padding:9px 16px;border-radius:8px;background:#1D9E75;color:#fff;border:none;font-size:12px;font-weight:600;font-family:'Sora',sans-serif;cursor:pointer;}
+.add-btn:hover{background:#0E7A5A;}
+</style>
+</head>
+<body>
+
+<p class="page-title">WhatsApp Bot</p>
+<p class="page-sub">TrustCircle Bachat Sangha · Field worker interface · Aadhaar-linked member verification</p>
+
+<!-- MAIN VIEW (shown when circles exist) -->
+<div id="main-view" style="display:none;">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-label" id="sidebar-label">Your Circles</div>
+      <div id="group-list"></div>
+    </div>
+
+    <div class="chat-wrap">
+      <div class="wa-header">
+        <div class="wa-avatar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        </div>
+        <div style="flex:1">
+          <div class="wa-title">TrustCircle Bot</div>
+          <div class="wa-sub" id="wa-sub"></div>
+        </div>
+        <div class="lang-wrap">
+          <button class="lang-btn active" id="btn-en" onclick="switchLang('en')">EN</button>
+          <button class="lang-btn" id="btn-hi" onclick="switchLang('hi')">हिं</button>
+        </div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="input-row">
+        <input class="chat-input" id="chat-input" placeholder="Type a message..." oninput="onInput()" onkeydown="onKey(event)" autocomplete="off"/>
+        <button class="send-btn" id="send-btn" onclick="doSend()">→</button>
+      </div>
+
+      <div class="chips-row">
+        <span class="chip" onclick="sendCmd('balance')">balance</span>
+        <span class="chip" onclick="sendCmd('members')">members</span>
+        <span class="chip" onclick="sendCmd('report')">report</span>
+        <span class="chip" onclick="sendCmd('help')">help</span>
+        <span class="chip-hint">+ deposit / loan / verify</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cmd-table">
+    <div class="cmd-head">
+      <span class="cmd-title" id="cmd-title">Bot Commands</span>
+      <span class="cmd-pill" id="cmd-pill">English</span>
+    </div>
+    <div id="cmd-rows"></div>
+  </div>
+</div>
+
+<!-- EMPTY STATE (shown when no circles) -->
+<div id="empty-view">
+  <div class="empty-state">
+    <div class="empty-icon">💬</div>
+    <div class="empty-title" id="empty-title">No circles yet</div>
+    <div class="empty-sub" id="empty-sub">
+      You have no circles yet.<br/>
+      Create one in the <a href="/circles">Circles page</a>.
+    </div>
+  </div>
+
+  <!-- Demo: simulate creating a circle so you can see the bot in action -->
+  <div class="add-form">
+    <div class="add-form-title">Preview only — simulate adding a circle</div>
+    <div class="form-row">
+      <input class="form-input" id="new-name" placeholder="Circle name" />
+      <input class="form-input" id="new-members" placeholder="Members" type="number" min="1" style="max-width:100px"/>
+      <input class="form-input" id="new-balance" placeholder="Balance ₹" type="number" min="0" style="max-width:120px"/>
+      <button class="add-btn" onclick="addCircle()">+ Add</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CMDS = {
+  en:[
+    {cmd:'balance',          desc:'Check group savings balance'},
+    {cmd:'members',          desc:'List verified members'},
+    {cmd:'report',           desc:'Monthly activity report'},
+    {cmd:'verify <aadhaar>', desc:'Verify member via Aadhaar OTP'},
+    {cmd:'loan <amount>',    desc:'Request loan from group fund'},
+    {cmd:'deposit <amount>', desc:'Record your deposit'},
+    {cmd:'help',             desc:'Show all commands'},
+  ],
+  hi:[
+    {cmd:'balance',        desc:'समूह की बचत देखें'},
+    {cmd:'members',        desc:'सत्यापित सदस्यों की सूची'},
+    {cmd:'report',         desc:'मासिक गतिविधि रिपोर्ट'},
+    {cmd:'verify <आधार>',  desc:'आधार OTP से सदस्य सत्यापन'},
+    {cmd:'loan <राशि>',    desc:'समूह निधि से ऋण अनुरोध'},
+    {cmd:'deposit <राशि>', desc:'अपनी जमा राशि दर्ज करें'},
+    {cmd:'help',           desc:'सभी कमांड देखें'},
+  ],
+};
+
+const T = {
+  en:{
+    welcome:  g=>`Namaste! 🙏\nWelcome to TrustCircle Bachat Sangha Bot.\n\nGroup: *${g.name}*\nMembers: ${g.members}\nPool Balance: ₹${g.savings.toLocaleString('en-IN')}\n\nType *help* to see all commands.`,
+    help:     ()=>`📋 *Available commands:*\n\n`+CMDS.en.map(c=>`• *${c.cmd}* — ${c.desc}`).join('\n'),
+    balance:  g=>`💰 *${g.name}*\n\nPool Balance: ₹${g.savings.toLocaleString('en-IN')}\nMembers: ${g.members}\nActive Loans: ${g.loans}`,
+    members:  g=>`👥 *Members – ${g.name}*\n\nTotal members: ${g.members}\n\n(Full member list available in the Circles page.)`,
+    report:   g=>`📊 *Report – ${g.name}*\n\nPool Balance: ₹${g.savings.toLocaleString('en-IN')}\nMembers: ${g.members}\nActive Loans: ${g.loans}\nFacilitator: ${g.facilitator}`,
+    verify:   ()=>`🪪 *Aadhaar Verification Started*\nAn OTP will be sent to the linked mobile.\n\n⏳ Valid for 5 minutes.`,
+    deposit:  (g,a)=>`✅ *Deposit Recorded*\nAmount: ₹${parseInt(a).toLocaleString('en-IN')}\nGroup: ${g.name}\n\nUpdated balance: ₹${(g.savings+parseInt(a)).toLocaleString('en-IN')}\n\nThank you! 🙏`,
+    loan:     (g,a)=>`📝 *Loan Request Received*\nAmount: ₹${parseInt(a).toLocaleString('en-IN')}\nGroup: ${g.name}\n\nForwarded to facilitator (${g.facilitator}) for approval.`,
+    unknown:  ["I didn't quite get that. Type *help* to see all commands.","Hmm, not sure what you mean. Try *help*.","Sorry, I only understand specific commands. Type *help*."],
+    placeholder:"Type a message...", online:"online", typing:"typing...",
+    yourCircles:"Your Circles", cmdTitle:"Bot Commands", cmdPill:"English",
+  },
+  hi:{
+    welcome:  g=>`नमस्ते! 🙏\nTrustCircle बचत संघ बॉट में आपका स्वागत है।\n\nसमूह: *${g.name}*\nसदस्य: ${g.members}\nपूल बैलेंस: ₹${g.savings.toLocaleString('en-IN')}\n\n*help* टाइप करें।`,
+    help:     ()=>`📋 *उपलब्ध कमांड:*\n\n`+CMDS.hi.map(c=>`• *${c.cmd}* — ${c.desc}`).join('\n'),
+    balance:  g=>`💰 *${g.name}*\n\nपूल बैलेंस: ₹${g.savings.toLocaleString('en-IN')}\nसदस्य: ${g.members}\nसक्रिय ऋण: ${g.loans}`,
+    members:  g=>`👥 *सदस्य – ${g.name}*\n\nकुल सदस्य: ${g.members}\n\n(पूरी सूची Circles पेज पर देखें।)`,
+    report:   g=>`📊 *रिपोर्ट – ${g.name}*\n\nपूल बैलेंस: ₹${g.savings.toLocaleString('en-IN')}\nसदस्य: ${g.members}\nसक्रिय ऋण: ${g.loans}`,
+    verify:   ()=>`🪪 *आधार सत्यापन शुरू हुआ*\nलिंक्ड मोबाइल पर OTP भेजा जाएगा।\n\n⏳ 5 मिनट के लिए वैध।`,
+    deposit:  (g,a)=>`✅ *जमा दर्ज की गई*\nराशि: ₹${parseInt(a).toLocaleString('en-IN')}\nसमूह: ${g.name}\n\nअपडेटेड शेष: ₹${(g.savings+parseInt(a)).toLocaleString('en-IN')}\n\nधन्यवाद! 🙏`,
+    loan:     (g,a)=>`📝 *ऋण अनुरोध प्राप्त हुआ*\nराशि: ₹${parseInt(a).toLocaleString('en-IN')}\nसमूह: ${g.name}\n\nसुविधाकर्ता (${g.facilitator}) को भेजा गया।`,
+    unknown:  ["समझ नहीं आया। *help* टाइप करें।","कृपया *help* टाइप करें।","मुझे यह समझ नहीं आया। *help* टाइप करें।"],
+    placeholder:"संदेश टाइप करें...", online:"ऑनलाइन", typing:"टाइप कर रहा है...",
+    yourCircles:"आपके सर्किल", cmdTitle:"बॉट कमांड", cmdPill:"हिंदी",
+  },
+};
+
+let lang = 'en';
+let groups = [];   // starts empty — just like the real app
+let selectedGroup = null;
+let messages = [];
+let isTyping = false;
+let idCounter = 1;
+
+function ts(){ return new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+
+function getBotReply(text){
+  const t=T[lang], g=selectedGroup, lower=text.toLowerCase().trim();
+  if(lower==='help')              return t.help();
+  if(lower==='balance')          return t.balance(g);
+  if(lower==='members')          return t.members(g);
+  if(lower.startsWith('report')) return t.report(g);
+  if(lower.startsWith('verify')) return t.verify();
+  if(lower.startsWith('deposit')){const a=lower.split(' ')[1]||'500'; return t.deposit(g,a);}
+  if(lower.startsWith('loan'))   {const a=lower.split(' ')[1]||'5000';return t.loan(g,a);}
+  return t.unknown[Math.floor(Math.random()*t.unknown.length)];
+}
+
+function bold(txt){ return txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\*(.*?)\*/g,'<strong style="color:#25D366">$1</strong>'); }
+
+function renderMessages(){
+  const el=document.getElementById('messages');
+  el.innerHTML = messages.map(m=>`
+    <div class="bubble ${m.from}">
+      <div class="bubble-text">${bold(m.text)}</div>
+      <div class="bubble-ts">${m.ts}</div>
+    </div>`).join('');
+  if(isTyping){
+    el.innerHTML+=`<div class="bubble bot" style="padding:10px 14px"><div style="display:flex;gap:5px;align-items:center">
+      ${[0,1,2].map(n=>`<div class="typing-dot" style="animation:tc-pulse 1.2s ${n*.2}s infinite ease-in-out"></div>`).join('')}
+    </div></div>`;
+  }
+  el.scrollTop=el.scrollHeight;
+}
+
+function renderGroups(){
+  document.getElementById('sidebar-label').textContent=T[lang].yourCircles;
+  document.getElementById('group-list').innerHTML=groups.map(g=>`
+    <div class="group-card${g.id===selectedGroup?.id?' active':''}" onclick="selectGroup('${g.id}')">
+      <div>
+        <div class="group-name">${g.name}</div>
+        <div class="group-meta">${g.members} members · ₹${g.savings.toLocaleString('en-IN')}</div>
+      </div>
+      ${g.id===selectedGroup?.id?'<div class="dot"></div>':''}
+    </div>`).join('');
+}
+
+function renderCmds(){
+  document.getElementById('cmd-title').textContent=T[lang].cmdTitle;
+  document.getElementById('cmd-pill').textContent=T[lang].cmdPill;
+  document.getElementById('cmd-rows').innerHTML=CMDS[lang].map(c=>`
+    <div class="cmd-row">
+      <code class="cmd-code">${c.cmd}</code>
+      <span class="cmd-desc">${c.desc}</span>
+    </div>`).join('');
+}
+
+function updateHeader(){
+  const t=T[lang];
+  if(selectedGroup){
+    document.getElementById('wa-sub').textContent=`${selectedGroup.name} · ${isTyping?t.typing:t.online}`;
+  }
+  document.getElementById('chat-input').placeholder=t.placeholder;
+}
+
+function updateView(){
+  const hasGroups = groups.length > 0;
+  document.getElementById('main-view').style.display = hasGroups ? 'block' : 'none';
+  document.getElementById('empty-view').style.display = hasGroups ? 'none' : 'block';
+}
+
+function addMessage(from,text){ messages.push({from,text,ts:ts()}); renderMessages(); }
+
+function selectGroup(id){
+  selectedGroup=groups.find(g=>g.id===id);
+  messages=[];
+  addMessage('bot',T[lang].welcome(selectedGroup));
+  renderGroups(); updateHeader();
+}
+
+function switchLang(l){
+  lang=l;
+  document.getElementById('btn-en').className='lang-btn'+(l==='en'?' active':'');
+  document.getElementById('btn-hi').className='lang-btn'+(l==='hi'?' active':'');
+  if(selectedGroup){ messages=[]; addMessage('bot',T[lang].welcome(selectedGroup)); }
+  renderGroups(); renderCmds(); updateHeader();
+}
+
+function onInput(){
+  const v=document.getElementById('chat-input').value.trim();
+  document.getElementById('send-btn').className='send-btn'+(v?' active':'');
+}
+
+function onKey(e){ if(e.key==='Enter') doSend(); }
+function sendCmd(cmd){ document.getElementById('chat-input').value=cmd; onInput(); doSend(); }
+
+async function doSend(){
+  if(isTyping||!selectedGroup) return;
+  const inp=document.getElementById('chat-input');
+  const text=inp.value.trim(); if(!text) return;
+  addMessage('user',text); inp.value=''; onInput();
+  isTyping=true; updateHeader(); renderMessages();
+  await new Promise(r=>setTimeout(r,700+Math.random()*400));
+  isTyping=false;
+  addMessage('bot',getBotReply(text));
+  updateHeader();
+}
+
+function addCircle(){
+  const name = document.getElementById('new-name').value.trim();
+  const members = parseInt(document.getElementById('new-members').value)||0;
+  const savings = parseInt(document.getElementById('new-balance').value)||0;
+  if(!name) return;
+  const g = {id:'c'+(idCounter++), name, members, savings, loans:0, facilitator:'Admin'};
+  groups.push(g);
+  document.getElementById('new-name').value='';
+  document.getElementById('new-members').value='';
+  document.getElementById('new-balance').value='';
+  updateView();
+  renderGroups();
+  renderCmds();
+  if(!selectedGroup){ selectGroup(g.id); }
+}
+
+// Boot — no groups, just empty state
+renderCmds();
+updateView();
+</script>
+</body>
+</html>
