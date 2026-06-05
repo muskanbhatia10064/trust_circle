@@ -31,6 +31,8 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "https://trustcircle-6o0wz2b3j-angelverman2021-a11ys-projects.vercel.app",
+        "https://trustcircle.vercel.app",
     ]
 
     # Person 3 — Exotel / IVR
