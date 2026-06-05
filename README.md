@@ -15,6 +15,10 @@ and rural-first access via USSD, IVR, and NGO facilitator mode.
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![Vite](https://img.shields.io/badge/Build-Vite-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
 
+🌐 **Live Demo:** [trustcircle-rust.vercel.app](https://trustcircle-rust.vercel.app)  
+🔗 **API:** [trustcircle-backend.onrender.com](https://trustcircle-backend.onrender.com)  
+📖 **API Docs:** [trustcircle-backend.onrender.com/api/v1/docs](https://trustcircle-backend.onrender.com/api/v1/docs)
+
 </div>
 
 ---
@@ -325,6 +329,32 @@ payouts             — Payout disbursement records
 
 ---
 
+## Deployment
+
+### Frontend — Vercel
+
+| Setting | Value |
+|---|---|
+| Platform | [vercel.com](https://vercel.com) |
+| Live URL | https://trustcircle-rust.vercel.app |
+| Root Directory | `frontend` |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
+| Env Variable | `VITE_API_BASE_URL=https://trustcircle-backend.onrender.com` |
+
+### Backend — Render
+
+| Setting | Value |
+|---|---|
+| Platform | [render.com](https://render.com) |
+| Live URL | https://trustcircle-backend.onrender.com |
+| Root Directory | `backend` |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Env Variables | `DATABASE_URL`, `SECRET_KEY`, `ENV=production` |
+
+---
+
 ## Notes
 
 - On first run the database is empty. Register a user at `/register` before using any other feature.
@@ -332,6 +362,7 @@ payouts             — Payout disbursement records
 - All API calls from the frontend go through `frontend/src/services/api.js`. Never write `fetch` or `axios` directly in page components.
 - JWT token is stored in `localStorage` and automatically attached to every request via an Axios interceptor.
 - On any `401` response the user is automatically redirected to `/login`.
+- Render free tier spins down after inactivity — first request may take ~30 seconds to wake up.
 
 ---
 
