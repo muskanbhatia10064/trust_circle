@@ -378,7 +378,13 @@ payouts             — Payout disbursement records
 
 ## Team
 
-Built for hackathon demonstration. See `TEAM.md` for full task distribution across backend and frontend contributors.
+| Role | Responsibility |
+|---|---|
+| Backend Lead | DB models, auth, config, API skeleton |
+| Backend Dev | Circles, contributions, trust score endpoints |
+| Backend Dev | USSD, IVR, consent, partner webhooks |
+| Frontend Lead | Design system, routing, API wiring, Leaflet map |
+| Frontend Dev | Dashboard, Trust Score ring, Circles, WhatsApp Bot UI |
 
 ---
 
