@@ -63,7 +63,7 @@ function ScoreArc({ score }) {
   );
 }
 
-function MemberCard({ member, isAdmin, onRaiseTicket }) {
+function MemberCard({ member, isAdmin, isReceiver, onRaiseTicket }) {
   const [hovered, setHovered] = useState(false);
   const scoreColor = getScoreColor(member.trust_score);
   const isPaid = member.payment_status === "paid";
@@ -109,7 +109,7 @@ function MemberCard({ member, isAdmin, onRaiseTicket }) {
             </>
           )}
         </div>
-        {isAdmin && !isPaid && (
+        {(isAdmin || isReceiver) && !isPaid && (
           <button
             onClick={() => onRaiseTicket(member)}
             style={{ background: "#FFF0F0", color: "#E05252", border: "1.5px solid #F8C8C8", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}
@@ -321,9 +321,9 @@ export default function Circles() {
                   const ps = payoutStatus[c.id];
                   const isReceiver = ps?.current_receiver?.id === user?.id;
                   const hasReceiver = !!ps?.current_receiver;
+                  const isAdmin = c.created_by === user?.id;
 
                   if (isReceiver) {
-                    // This user is the selected payout receiver
                     return (
                       <>
                         <div style={{ fontSize: "12px", color: "#1D9E75", fontWeight: "600", marginBottom: "6px" }}>🎯 You are this round's receiver!</div>
@@ -345,18 +345,17 @@ export default function Circles() {
                           onClick={e => { e.stopPropagation(); handleConfirmReceived(c.id); }}
                           disabled={confirming}
                         >
-                          {confirming ? "Confirming…" : "✅ Confirm Everyone Paid"}
+                          {confirming ? "Confirming…" : "✅ I've Received Everyone's Payment"}
                         </button>
                       </>
                     );
                   }
 
                   if (hasReceiver) {
-                    // There's a receiver, this user needs to pay
                     return (
                       <>
                         <div style={{ fontSize: "12px", color: "#6B7A8D", marginBottom: "6px" }}>
-                          💸 Pay to: <strong>{ps.current_receiver.name}</strong>
+                          💸 This month's receiver: <strong>{ps.current_receiver.name}</strong>
                         </div>
                         {c.upi_qr_image && (
                           <div style={{ textAlign: "center", marginBottom: "6px" }}>
@@ -364,17 +363,36 @@ export default function Circles() {
                           </div>
                         )}
                         <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
-                          {contributing ? "Processing…" : "Pay Contribution"}
+                          {contributing ? "Processing…" : `Pay ₹${c.contribution_amount} to ${ps.current_receiver.name}`}
                         </button>
                       </>
                     );
                   }
 
-                    // No receiver assigned yet — show generic pay
+                  // No receiver yet — only admin can assign
+                  if (isAdmin) {
+                    return (
+                      <button
+                        style={{ ...styles.payBtn, background: "#F0FAF5", color: "#1D9E75", border: "1.5px solid #B8E0D0" }}
+                        onClick={async e => {
+                          e.stopPropagation();
+                          try {
+                            const r = await circleApi.assignReceiver(c.id);
+                            setMsg(`🎯 ${r.data.message}`);
+                            await loadCircles();
+                          } catch (err) { setMsg(err.response?.data?.detail || "Failed to assign receiver"); }
+                          setTimeout(() => setMsg(""), 4000);
+                        }}
+                      >
+                        🎲 Pick This Month's Receiver
+                      </button>
+                    );
+                  }
+
                   return (
-                    <button style={styles.payBtn} onClick={e => { e.stopPropagation(); contribute(c.id); }} disabled={contributing}>
-                      {contributing ? "Processing…" : "Pay Contribution"}
-                    </button>
+                    <div style={{ fontSize: "12px", color: "#8899AA", textAlign: "center", padding: "8px 0" }}>
+                      ⏳ Waiting for admin to pick this month's receiver
+                    </div>
                   );
                 })()}
 
@@ -515,6 +533,7 @@ export default function Circles() {
                     key={m.user_id || i}
                     member={m}
                     isAdmin={selectedCircle.created_by === user?.id}
+                    isReceiver={payoutStatus[selectedCircle.id]?.current_receiver?.id === user?.id}
                     onRaiseTicket={setTicketModal}
                   />
                 ))}

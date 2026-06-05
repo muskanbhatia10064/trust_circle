@@ -17,5 +17,4 @@ from .models import (
     ConsentRecord,
     FairnessAudit,
     PartnerWebhook,
-    DisputeTicket,
 )

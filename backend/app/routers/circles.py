@@ -359,13 +359,13 @@ def raise_ticket(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Admin raises a dispute ticket against a non-paying member."""
-    from datetime import datetime
+    """Receiver raises a dispute ticket against a non-paying member and penalises trust score."""
     circle = db.query(Circle).filter(Circle.id == circle_id).first()
     if not circle:
         raise HTTPException(status_code=404, detail="Circle not found")
-    if circle.created_by != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the circle admin can raise tickets")
+    # Allow circle creator OR current payout receiver to raise tickets
+    if circle.created_by != current_user.id and circle.current_payout_receiver_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the circle admin or current receiver can raise tickets")
     target = db.query(User).filter(User.id == body.against_user_id).first()
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
@@ -378,11 +378,17 @@ def raise_ticket(
     db.execute(text(
         "INSERT INTO dispute_tickets (circle_id, raised_by, against_user_id, reason) VALUES (:c, :r, :a, :reason)"
     ), {"c": circle_id, "r": current_user.id, "a": body.against_user_id, "reason": body.reason})
+    # Penalise trust score by 10 points for non-payment
+    penalty = 10.0
+    new_score = max(0.0, float(target.current_trust_score) - penalty)
+    target.current_trust_score = new_score
+    save_trust_score(target.id, new_score, db)
     db.commit()
     return {
-        "message": f"Ticket raised against {target.full_name or target.name}",
+        "message": f"Ticket raised against {target.full_name or target.name}. Trust score penalised by {penalty} pts.",
         "against": target.full_name or target.name,
         "reason": body.reason,
+        "new_trust_score": new_score,
     }
 
 
